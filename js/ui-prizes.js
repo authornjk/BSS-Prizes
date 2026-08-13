@@ -1,588 +1,515 @@
-/**
- * ui-prizes.js — prize list, filtering, sorting, add/edit/delete
- */
+// ui-prizes.js — prize list, cards, add/edit modal, bundle
+let _sortKey='name';
+let _filterCat='';
+let _filterDonor='';
+let _filterTag='';
+let _search='';
+let _expandedId=null;
+let _newId=null;
+let _bundleMode=false;
+let _selectedForBundle=new Set();
 
-let _sortKey = 'name';
-let _selectedForBundle = new Set(); // prize ids selected for bundling
-let _showBundled = false;           // whether to show bundled-into items
-let _sortDir = 1;
-let _donorTypeModal = 'author';
-
-function initPrizeSortFromPrefs() {
-  const prefs = getPrefs();
-  _sortKey = prefs.sortKey || 'name';
-  _sortDir = prefs.sortDir || 1;
-}
-
-function renderPrizesTab() {
-  const prefs = getPrefs();
-  const meta = getMeta();
-  const defCat = prefs.defaultCat !== undefined ? prefs.defaultCat : (currentUser().defaultCat || '');
-
-  return `
-    <div id="bundle-bar" style="display:none;background:var(--purple-bg);border:1px solid var(--purple);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;color:var(--purple-text);font-weight:500"><span id="bundle-count">0</span> items selected</span>
-      <button class="btn primary" onclick="openBundleModal()" style="font-size:12px;padding:4px 10px"><i class="ti ti-package"></i> Bundle into one prize</button>
-      <button class="btn" onclick="clearBundleSelection()" style="font-size:12px;padding:4px 10px">Cancel</button>
-    </div>
-    <div class="filter-bar">
-      <input type="text" id="search" placeholder="Search prizes, donors, notes…" oninput="renderPrizes()">
-      <select id="filter-cat" onchange="saveFilterPref();renderPrizes()">
-        <option value="">All categories</option>
-        ${CATS.map(c => `<option value="${c}"${c === defCat ? ' selected' : ''}>${c}</option>`).join('')}
-      </select>
-      <select id="filter-loc" onchange="renderPrizes()"><option value="">All locations</option></select>
-      <select id="filter-donor" onchange="renderPrizes()"><option value="">All donors</option></select>
-      <select id="filter-tag" onchange="renderPrizes()">
-        <option value="">Any tag status</option>
-        <option value="needed">Tag needed</option>
-        <option value="made">Tag made</option>
-        <option value="complete">All stages done</option>
-        <option value="no">No tag needed</option>
-      </select>
-      <button class="add-btn" onclick="openAddPrizeModal()"><i class="ti ti-plus"></i> Add prize</button>
-      <button class="add-btn" style="background:var(--purple-bg);color:var(--purple-text);border-color:var(--purple)" onclick="toggleBundleMode()"><i class="ti ti-package"></i> Bundle</button>
-    </div>
-    <div class="sort-row">
-      <span class="sort-lbl">Sort:</span>
-      ${['name','value','donor','cat','loc','paid','qty'].map(k =>
-        `<button class="sort-btn${_sortKey === k ? ' active' : ''}" id="sort-${k}" onclick="setSort('${k}')">${
-          {name:'Name',value:'Value',donor:'Donor',cat:'Category',loc:'Location',paid:'Paid',qty:'Qty'}[k]
-        }</button>`
-      ).join('')}
-      <span class="result-count" id="result-count"></span>
-    </div>
-    <div class="prize-list" id="prize-list"></div>`;
-}
-
-function saveFilterPref() {
-  const cat = (document.getElementById('filter-cat') || {}).value || '';
-  const prefs = getPrefs();
-  prefs.defaultCat = cat;
-  savePrefs(prefs);
-}
-
-function updateFilterDropdowns() {
-  const locSel = document.getElementById('filter-loc');
-  if (locSel) {
-    const cv = locSel.value;
-    locSel.innerHTML = '<option value="">All locations</option>' +
-      getLocs().map(l => `<option${l === cv ? ' selected' : ''}>${escHtml(l)}</option>`).join('');
+// ── Filter + sort ─────────────────────────────────────────────────────────────
+function filteredSortedPrizes(){
+  let list=getPrizes();
+  // Hide bundled-into items unless filter says show
+  if(_filterTag!=='bundled') list=list.filter(p=>!p.bundledInto);
+  if(_filterCat)  list=list.filter(p=>p.cat===_filterCat||(p.cat||'Unassigned')===_filterCat);
+  if(_filterDonor) list=list.filter(p=>(p.donor||'')=== _filterDonor);
+  if(_search){
+    const q=_search.toLowerCase();
+    list=list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.donor||'').toLowerCase().includes(q)||(p.notes||'').toLowerCase().includes(q));
   }
-  const donSel = document.getElementById('filter-donor');
-  if (donSel) {
-    const cv = donSel.value;
-    donSel.innerHTML = '<option value="">All donors</option>' +
-      getDonors().map(d => `<option${d === cv ? ' selected' : ''}>${escHtml(d)}</option>`).join('');
-  }
-}
+  if(_filterTag==='needTag')    list=list.filter(p=>p.needTag&&!p.tagMade);
+  if(_filterTag==='tagMade')    list=list.filter(p=>p.tagMade&&!p.tagPrinted);
+  if(_filterTag==='tagPrinted') list=list.filter(p=>p.tagPrinted&&!p.tagAttached);
+  if(_filterTag==='tagAttached')list=list.filter(p=>p.tagAttached&&!p.onTote);
+  if(_filterTag==='onTote')     list=list.filter(p=>p.onTote);
+  if(_filterTag==='generated')  list=list.filter(p=>p.tagGenerated);
+  if(_filterTag==='notGenerated')list=list.filter(p=>p.needTag&&!p.tagGenerated);
 
-function filteredSortedPrizes() {
-  const q = (document.getElementById('search') || {}).value?.toLowerCase() || '';
-  const cat = (document.getElementById('filter-cat') || {}).value || '';
-  const loc = (document.getElementById('filter-loc') || {}).value || '';
-  const don = (document.getElementById('filter-donor') || {}).value || '';
-  const tag = (document.getElementById('filter-tag') || {}).value || '';
-
-  let list = getPrizes().filter(p => {
-    const mq = !q || p.name.toLowerCase().includes(q) || (p.donor || '').toLowerCase().includes(q) || (p.notes || '').toLowerCase().includes(q);
-    const mc = !cat || p.cat === cat;
-    const ml = !loc || p.loc === loc;
-    const md = !don || p.donor === don;
-    let mt = true;
-    if (tag === 'needed') mt = p.needTag && !p.tagMade;
-    if (tag === 'made') mt = p.needTag && p.tagMade;
-    if (tag === 'complete') mt = p.needTag && STAGES.every(s => p[s]);
-    if (tag === 'no') mt = !p.needTag;
-    return mq && mc && ml && md && mt;
+  list.sort((a,b)=>{
+    if(_sortKey==='value') return (+b.value||0)-(+a.value||0);
+    if(_sortKey==='donor') return (a.donor||'').localeCompare(b.donor||'');
+    if(_sortKey==='cat')   return (a.cat||'').localeCompare(b.cat||'');
+    if(_sortKey==='paid')  return (+b.paid||0)-(+a.paid||0);
+    return (a.name||'').localeCompare(b.name||'');
   });
-
-  list.sort((a, b) => {
-    let av = a[_sortKey] || '', bv = b[_sortKey] || '';
-    if (['value', 'paid', 'qty'].includes(_sortKey)) {
-      return ((+av || 0) - (+bv || 0)) * _sortDir;
-    }
-    return String(av).localeCompare(String(bv)) * _sortDir;
-  });
-
   return list;
 }
 
-function setSort(k) {
-  if (_sortKey === k) _sortDir *= -1; else { _sortKey = k; _sortDir = 1; }
-  const prefs = getPrefs();
-  prefs.sortKey = _sortKey;
-  prefs.sortDir = _sortDir;
-  savePrefs(prefs);
-  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('sort-' + k);
-  if (btn) btn.classList.add('active');
+// ── Main render ───────────────────────────────────────────────────────────────
+function renderPrizes(){
+  const el=document.getElementById('tab-prizes');
+  if(!el) return;
+  renderGoals();
+  const list=filteredSortedPrizes();
+  const allPrizes=getPrizes().filter(p=>!p.bundledInto);
+  const donors=[...new Set(allPrizes.map(p=>p.donor).filter(Boolean))].sort();
+
+  el.innerHTML=`
+  <div class="goals-bar" id="goals-bar"></div>
+
+  ${_bundleMode&&_selectedForBundle.size>0?`
+    <div class="bundle-bar">
+      <span style="font-size:13px;color:var(--purple-text);font-weight:500">${_selectedForBundle.size} selected</span>
+      <button class="btn purple" onclick="openBundleModal()"><i class="ti ti-package"></i> Bundle into one prize</button>
+      <button class="btn" onclick="clearBundleSelection()">Cancel</button>
+    </div>`:
+  _bundleMode?`<div class="bundle-bar"><span style="font-size:12px;color:var(--purple-text)">Select prizes to bundle, then tap "Bundle"</span><button class="btn" onclick="clearBundleSelection()">Cancel</button></div>`:''}
+
+  <div class="filter-bar">
+    <input type="search" placeholder="Search prizes…" value="${escHtml(_search)}" oninput="_search=this.value;renderPrizes()">
+    <select onchange="_filterCat=this.value;renderPrizes()">
+      <option value="">All categories</option>
+      ${['BINGO','Raffle','Medium','Small','SWAG Bag','Unassigned'].map(c=>`<option value="${c}"${_filterCat===c?' selected':''}>${c}</option>`).join('')}
+    </select>
+    <select onchange="_filterDonor=this.value;renderPrizes()">
+      <option value="">All donors</option>
+      ${donors.map(d=>`<option${_filterDonor===d?' selected':''}>${escHtml(d)}</option>`).join('')}
+    </select>
+    <select onchange="_filterTag=this.value;renderPrizes()">
+      <option value="">All tag stages</option>
+      <option value="needTag">Needs tag</option>
+      <option value="tagMade">Tag made</option>
+      <option value="tagPrinted">Tag printed</option>
+      <option value="tagAttached">Tag attached</option>
+      <option value="onTote">On tote paper</option>
+      <option value="generated">PDF generated</option>
+      <option value="notGenerated">PDF not yet generated</option>
+      <option value="bundled">Show bundled items</option>
+    </select>
+  </div>
+  <div class="sort-row">
+    <span class="sort-lbl">Sort:</span>
+    ${['name','donor','value','cat','paid'].map(k=>`<button class="sort-btn${_sortKey===k?' active':''}" onclick="_sortKey='${k}';renderPrizes()">${k.charAt(0).toUpperCase()+k.slice(1)}</button>`).join('')}
+    <span class="result-count">${list.length} prize${list.length!==1?'s':''}</span>
+    <button class="btn" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="toggleBundleMode()">
+      <i class="ti ti-package"></i> ${_bundleMode?'Exit bundle':'Bundle'}
+    </button>
+    ${isAdmin()?`<button class="btn primary" onclick="openAddPrizeModal()"><i class="ti ti-plus"></i> Add prize</button>`:''}
+  </div>
+  <div class="prize-list">
+    ${list.length?list.map(p=>prizeCardHTML(p)).join(''):`<div class="empty"><i class="ti ti-gift"></i>No prizes match your filters.</div>`}
+  </div>`;
+  renderGoals();
+  if(_newId){
+    setTimeout(()=>{
+      document.getElementById('pc-'+_newId)?.classList.add('new-item');
+      _newId=null;
+    },50);
+  }
+}
+
+// ── Prize card ────────────────────────────────────────────────────────────────
+function prizeCardHTML(p){
+  const expanded=_expandedId===p.id;
+  const bundleSelected=_selectedForBundle.has(p.id);
+  const tagDot=p.needTag
+    ?(p.onTote?'td-done':p.tagAttached?'td-made':p.tagMade?'td-made':'td-yes')
+    :'td-no';
+
+  const badgeHTML=p.isBundle
+    ?`<span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:10px;font-weight:600">📦 Bundle×${(p.bundleContains||[]).length}</span>`
+    :p.bundledInto
+    ?`<span style="font-size:10px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:10px">🔗 ${escHtml(p.bundledIntoName||'Bundle')}</span>`
+    :'';
+
+  return `<div class="prize-card${expanded?' expanded':''}${bundleSelected?' bundle-sel':''}"
+    id="pc-${p.id}"
+    style="${bundleSelected?'border-color:var(--purple);border-width:1.5px;background:var(--purple-bg)':''}"
+    onclick="${_bundleMode?`toggleBundleSelect(${p.id},event)`:`toggleCard(${p.id})`}">
+    <div class="prize-row">
+      ${_bundleMode&&!p.bundledInto&&!p.isBundle?`<input type="checkbox" ${bundleSelected?'checked':''} style="width:16px;height:16px;accent-color:var(--purple);flex-shrink:0" onclick="event.stopPropagation();toggleBundleSelect(${p.id},event)">`:``}
+      <div class="tag-dot ${tagDot}"></div>
+      <div class="prize-name">${escHtml(p.name||'Unnamed prize')}</div>
+      <div class="prize-meta">
+        ${badgeHTML}
+        ${p.itemType&&p.itemType!=='Other'?`<span style="font-size:10px;color:var(--text3)">${escHtml(p.itemType)}</span>`:''}
+        ${p.value?`<span class="pmv">${fmt$(p.value)}</span>`:''}
+        <span class="cat-pill cat-${(p.cat||'Unassigned').replace(/\s/g,'')}">${escHtml(p.cat||'Unassigned')}</span>
+      </div>
+    </div>
+    <div class="prize-detail">
+      ${prizeDetailHTML(p)}
+    </div>
+  </div>`;
+}
+
+function toggleCard(id){
+  _expandedId = _expandedId===id ? null : id;
   renderPrizes();
 }
 
-function renderPrizes() {
-  updateFilterDropdowns();
-  renderGoals();
-
-  const list = filteredSortedPrizes();
-  const prizes = getPrizes();
-  const rc = document.getElementById('result-count');
-  if (rc) rc.textContent = list.length !== prizes.length ? `${list.length} of ${prizes.length}` : `${prizes.length} prizes`;
-
-  const el = document.getElementById('prize-list');
-  if (!el) return;
-
-  if (!list.length) {
-    el.innerHTML = prizes.length === 0
-      ? `<div class="empty"><i class="ti ti-gift"></i><span style="font-weight:600">No prizes yet</span><span>Tap "Add prize" to get started</span></div>`
-      : `<div class="empty"><i class="ti ti-search"></i><span>No prizes match your filters</span></div>`;
-    return;
-  }
-
-  el.innerHTML = list.map(p => prizeCardHTML(p)).join('');
-
-  const newIds = getNewItemIds();
-  newIds.forEach(id => {
-    const card = document.getElementById('pc-' + id);
-    if (card) card.classList.add('new-item');
-  });
-  setTimeout(() => clearNewItemIds(), 3000);
-}
-
-function prizeCardHTML(p) {
-  const stages = STAGES.map((s, i) =>
-    `<button class="stg ${p[s] ? 'done' : ''}" onclick="toggleStage(${p.id},'${s}',event)">${STAGE_LABELS[i]}</button>`
-  ).join('');
-
-  const valTotal = (p.value || 0) * (p.qty || 1);
-  const meta = getMeta();
-
+// ── Prize detail ──────────────────────────────────────────────────────────────
+function prizeDetailHTML(p){
+  const stages=[
+    {key:'tagMade',label:'Tag made'},
+    {key:'tagPrinted',label:'Tag printed'},
+    {key:'tagAttached',label:'Tag attached'},
+    {key:'onTote',label:'On tote paper'},
+  ];
   return `
-    <div class="prize-card" id="pc-${p.id}">
-      <div class="prize-row" onclick="toggleCard(${p.id})">
-        <span class="cat-pill ${catClass(p.cat)}">${escHtml(p.cat)}</span>
-        <span class="prize-name">${escHtml(p.name)}</span>
-        <div class="prize-meta">
-          ${p.qty > 1 ? `<span class="pmv">×${p.qty}</span>` : ''}
-          ${p.value ? `<span class="pmv">${fmtMoney(p.value)}</span>` : ''}
-          ${valTotal > 0 && p.qty > 1 ? `<span class="pmv" style="font-weight:600">${fmtMoney(valTotal)}</span>` : ''}
-          ${p.donor ? `<span class="pmv">${escHtml(p.donor)}</span>` : ''}
-          ${p.loc ? `<span class="pmv">${escHtml(p.loc)}</span>` : ''}
-          <div class="tag-dot ${tagDotClass(p)}"></div>
-          <i class="ti ti-chevron-down" id="chev-${p.id}" style="font-size:13px;color:var(--text3);transition:transform .2s"></i>
-        </div>
+  <div class="det-meta">Added by ${escHtml(p.addedBy||'?')} · Last updated ${new Date(p._mod||Date.now()).toLocaleDateString()}</div>
+  <div class="det-grid">
+    <div class="df"><label>Category</label>
+      <select onchange="savePrizeField(${p.id},'cat',this.value)">
+        ${['BINGO','Raffle','Medium','Small','SWAG Bag','Unassigned'].map(c=>`<option${p.cat===c?' selected':''}>${c}</option>`).join('')}
+      </select></div>
+    <div class="df"><label>Qty</label>
+      <input type="number" value="${p.qty||1}" min="1" onchange="savePrizeField(${p.id},'qty',+this.value)"></div>
+    <div class="df"><label>Est. value ($)</label>
+      <input type="text" inputmode="decimal" value="${p.value||''}" placeholder="0.00"
+        onblur="savePrizeField(${p.id},'value',parseFloat(this.value)||0)"></div>
+    <div class="df"><label>Amount paid ($)</label>
+      <input type="text" inputmode="decimal" value="${p.paid||''}" placeholder="0.00"
+        onblur="savePrizeField(${p.id},'paid',parseFloat(this.value)||0)"></div>
+    <div class="df full"><label>Prize name</label>
+      <input type="text" value="${escHtml(p.name||'')}"
+        onblur="savePrizeField(${p.id},'name',this.value)"></div>
+    <div class="df"><label>Location</label>
+      <input type="text" value="${escHtml(p.loc||'')}"
+        onblur="savePrizeField(${p.id},'loc',this.value)"></div>
+    <div class="df"><label>URL / link</label>
+      <input type="text" value="${escHtml(p.url||'')}" placeholder="https://…"
+        onblur="savePrizeField(${p.id},'url',this.value)"></div>
+    <div class="df full"><label>Item type</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${['Book','Clothing','Other'].map(t=>`
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+            <input type="radio" name="itype-${p.id}" value="${t}" ${(p.itemType||'Other')===t?'checked':''}
+              onchange="savePrizeField(${p.id},'itemType',this.value);renderPrizes()"> ${t}
+          </label>`).join('')}
       </div>
-      <div class="prize-detail" id="det-${p.id}">
-        <div class="det-grid">
-          <div class="df">
-            <label>Category</label>
-            <select onchange="updatePrize(${p.id},{cat:this.value})">
-              ${CATS.map(c => `<option${p.cat === c ? ' selected' : ''}>${c}</option>`).join('')}
-            </select>
-          </div>
-          <div class="df">
-            <label>Location</label>
-            <input type="text" value="${escHtml(p.loc || '')}" list="ll-${p.id}" onchange="updatePrize(${p.id},{loc:this.value})">
-            <datalist id="ll-${p.id}">${getLocs().map(l => `<option value="${escHtml(l)}">`).join('')}</datalist>
-          </div>
-          <div class="df">
-            <label>Quantity</label>
-            <input type="number" min="0" value="${p.qty || 1}" onchange="updatePrize(${p.id},{qty:+this.value})">
-          </div>
-          <div class="df">
-            <label>Value each ($)</label>
-            <input type="number" step=".01" value="${p.value || ''}" onchange="updatePrize(${p.id},{value:+this.value})">
-          </div>
-          <div class="df">
-            <label>Amount paid ($)</label>
-            <input type="number" step=".01" value="${p.paid || ''}" onchange="updatePrize(${p.id},{paid:+this.value})">
-          </div>
-          <div class="df">
-            <label>Donor</label>
-            <input type="text" value="${escHtml(p.donor || '')}" list="al-${p.id}" onchange="updatePrize(${p.id},{donor:this.value})">
-            <datalist id="al-${p.id}">${meta.authors.map(a => `<option value="${escHtml(a)}">`).join('')}</datalist>
-          </div>
-          <div class="df full">
-            <label>Notes / tag instructions</label>
-            <textarea onchange="updatePrize(${p.id},{notes:this.value})">${escHtml(p.notes || '')}</textarea>
-          </div>
-          <div class="df full">
-            <label>Website / QR link</label>
-            <input type="text" value="${escHtml(p.url || '')}" onchange="updatePrize(${p.id},{url:this.value})">
-          </div>
-        </div>
-
-        <div style="margin-bottom:8px">
-          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;display:flex;align-items:center;gap:8px">
-            Donation tag
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;text-transform:none;letter-spacing:0;cursor:pointer">
-              <input type="checkbox" ${p.needTag ? 'checked' : ''} onchange="updatePrize(${p.id},{needTag:this.checked})">
-              Needs tag
-            </label>
-          </div>
-          ${p.needTag
-            ? `<div class="stage-row">${stages}</div>`
-            : `<span style="font-size:11px;color:var(--text3)">No tag required</span>`}
-        </div>
-
-        <div class="photo-area ${p.photo ? 'has-photo' : ''}" id="pa-${p.id}">
-          <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(${p.id},this)">
-          ${p.photo
-            ? `<img src="${p.photo}" alt="Prize photo">`
-            : `<div class="photo-ph"><i class="ti ti-camera" style="font-size:20px"></i><span>Tap to add photo</span></div>`}
-        </div>
-
-        <div class="det-meta">
-          ${p.addedBy ? `Added by ${escHtml(p.addedBy)}` : ''}
-          ${p.updatedBy && p.updatedBy !== p.addedBy ? ` · Last edited by ${escHtml(p.updatedBy)}` : ''}
-        </div>
-
-        <div class="det-actions">
-          ${isAdmin() || p.addedBy === currentUser().displayName
-            ? `<button class="btn danger" onclick="doDeletePrize(${p.id})"><i class="ti ti-trash"></i> Delete</button>`
-            : ''}
-          <button class="btn primary" onclick="doSavePrize(${p.id})"><i class="ti ti-cloud-upload"></i> Save</button>
-        </div>
-      </div>
-    </div>`;
-}
-
-function toggleCard(id) {
-  const card = document.getElementById('pc-' + id);
-  const chev = document.getElementById('chev-' + id);
-  const open = card.classList.toggle('expanded');
-  if (chev) chev.style.transform = open ? 'rotate(180deg)' : 'rotate(0)';
-}
-
-async function toggleStage(id, stage, e) {
-  e.stopPropagation();
-  const p = getPrizes().find(x => x.id === id);
-  if (!p) return;
-  await updatePrize(id, { [stage]: !p[stage] });
-}
-
-async function doSavePrize(id) {
-  // Fields already updated in-place via updatePrize calls; this just triggers a full re-save
-  const p = getPrizes().find(x => x.id === id);
-  if (!p) return;
-  setSyncState('syncing');
-  await updatePrize(id, {});
-  setSyncState('live');
-}
-
-async function doDeletePrize(id) {
-  if (!confirm('Delete this prize? This cannot be undone.')) return;
-  await deletePrize(id);
-}
-
-async function handlePhoto(id, input) {
-  if (!input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = async e => {
-    const compressed = await compressPhoto(e.target.result);
-    const area = document.getElementById('pa-' + id);
-    if (area) {
-      area.classList.add('has-photo');
-      area.innerHTML = `<input type="file" accept="image/*" capture="environment" onchange="handlePhoto(${id},this)"><img src="${compressed}" alt="Prize photo">`;
-    }
-    await updatePrize(id, { photo: compressed });
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-// ── Add prize modal ──────────────────────────────────────────────────────────
-
-function openAddPrizeModal() {
-  _donorTypeModal = 'author';
-  const meta = getMeta();
-  showModal(`
-    <h3>Add new prize</h3>
-    <div class="m-grid">
-      <div class="mf full"><label>Prize name / description</label><input type="text" id="mn" placeholder="e.g. Signed copy of…"></div>
-      <div class="mf"><label>Category</label><select id="mc">${CATS.map(c => `<option>${c}</option>`).join('')}</select></div>
-      <div class="mf"><label>Quantity</label><input type="number" id="mq" value="1" min="0"></div>
-      <div class="mf"><label>Paid ($)</label><input type="number" id="mpaid" placeholder="0.00" step=".01"></div>
-      <div class="mf"><label>Value each ($)</label><input type="number" id="mv" placeholder="0.00" step=".01"></div>
-      <div class="mf"><label>Location</label><input type="text" id="ml" list="mll" placeholder="e.g. Nicole's house"><datalist id="mll">${getLocs().map(l => `<option value="${escHtml(l)}">`).join('')}</datalist></div>
-      <div class="mf full">
-        <label>Donor type</label>
-        <div class="donor-toggle">
-          <button class="dt-opt active" id="dt-author" onclick="setDonorType('author')">Author</button>
-          <button class="dt-opt" id="dt-business" onclick="setDonorType('business')">Business</button>
-          <button class="dt-opt" id="dt-none" onclick="setDonorType('none')">Not donated</button>
-        </div>
-        <div id="dt-author-f"><label>Author</label><select id="mauth"><option value="">— select —</option>${meta.authors.map(a => `<option>${escHtml(a)}</option>`).join('')}</select></div>
-        <div id="dt-biz-f" style="display:none"><label>Business name</label><input type="text" id="mbiz" placeholder="e.g. Litograph.com"></div>
-      </div>
-      <div class="mf full"><label>Notes</label><textarea id="mnotes" rows="2"></textarea></div>
-      <div class="mf"><label>Website / QR</label><input type="text" id="murl" placeholder="https://…"></div>
-      <div class="mf"><label>Needs tag?</label><select id="mtag"><option value="no">No</option><option value="yes">Yes</option></select></div>
     </div>
+    ${p.itemType==='Clothing'?`
+    <div class="df"><label>Clothing size</label>
+      <div style="display:flex;gap:4px">
+        <select onchange="savePrizeField(${p.id},'clothingSize',this.value);if(this.value==='Custom')document.getElementById('csc-${p.id}').style.display='block';else document.getElementById('csc-${p.id}').style.display='none'">
+          ${['','S','M','L','XL','XXL','XXXL','Custom'].map(s=>`<option value="${s}"${p.clothingSize===s?' selected':''}>${s||'Select…'}</option>`).join('')}
+        </select>
+      </div>
+      <input type="text" id="csc-${p.id}" placeholder="Custom size…" value="${escHtml(p.clothingSizeCustom||'')}"
+        style="margin-top:4px;width:100%;display:${p.clothingSize==='Custom'?'block':'none'}"
+        onblur="savePrizeField(${p.id},'clothingSizeCustom',this.value)">
+    </div>`:''}
+    ${p.itemType==='Other'?`<div class="df"><label>Item description</label>
+      <input type="text" value="${escHtml(p.itemTypeCustom||'')}" placeholder="What kind of item?"
+        onblur="savePrizeField(${p.id},'itemTypeCustom',this.value)"></div>`:''}
+  </div>
+
+  <!-- Donor section -->
+  <div style="margin-bottom:8px">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:5px">Donor</div>
+    <div class="donor-toggle">
+      <button class="dt-opt${(p.donorType||'author')==='author'?' active':''}"
+        onclick="savePrizeField(${p.id},'donorType','author');renderPrizes()">Author</button>
+      <button class="dt-opt${p.donorType==='business'?' active':''}"
+        onclick="savePrizeField(${p.id},'donorType','business');renderPrizes()">Business</button>
+      <button class="dt-opt${!p.donor&&!p.donorType?' active':''}"
+        onclick="savePrizeField(${p.id},'donor','');savePrizeField(${p.id},'needTag',false);renderPrizes()">None</button>
+    </div>
+    <div class="det-grid">
+      <div class="df full"><label>Donor name</label>
+        <input type="text" value="${escHtml(p.donor||'')}"
+          onblur="savePrizeField(${p.id},'donor',this.value)"></div>
+      <div class="df full"><label>Donor website / URL <span style="color:var(--text3)">(for QR code)</span></label>
+        <input type="text" value="${escHtml(p.donorQRDest||p.url||'')}" placeholder="https://…"
+          onblur="savePrizeField(${p.id},'donorQRDest',this.value)"></div>
+      <div class="df"><label>QR type</label>
+        <select onchange="savePrizeField(${p.id},'donorQRType',this.value)">
+          <option value="website"${(p.donorQRType||'website')==='website'?' selected':''}>Website</option>
+          <option value="instagram"${p.donorQRType==='instagram'?' selected':''}>Instagram</option>
+        </select></div>
+      <div class="df"><label>Pronoun</label>
+        <select onchange="savePrizeField(${p.id},'donorPronoun',this.value)">
+          ${['their','her','his'].map(pr=>`<option value="${pr}"${(p.donorPronoun||'their')===pr?' selected':''}>${pr}</option>`).join('')}
+        </select></div>
+      <div class="df full"><label>Tag headline <span style="color:var(--text3)">(defaults to "This book was donated by")</span></label>
+        <input type="text" value="${escHtml(p.donorHeadline||'')}" placeholder="This book was donated by"
+          onblur="savePrizeField(${p.id},'donorHeadline',this.value)"></div>
+      <div class="df full"><label>Donor logo URL <span style="color:var(--text3)">(Google Drive link to high-res logo)</span></label>
+        <input type="text" value="${escHtml(p.donorLogoUrl||'')}" placeholder="https://drive.google.com/…"
+          onblur="savePrizeField(${p.id},'donorLogoUrl',this.value)"></div>
+    </div>
+  </div>
+
+  ${p.needTag?`
+  <div style="margin-bottom:8px">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:5px">Donation tag stages</div>
+    <div class="stage-row">
+      ${stages.map(s=>`<button class="stg${p[s.key]?' done':''}" onclick="toggleStage(${p.id},'${s.key}')">${s.label}</button>`).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+      <span style="font-size:11px;color:var(--text2)">PDF tag:</span>
+      <span class="print-status ${p.tagGenerated?'generated':'pending'}">${p.tagGenerated?'Generated':'Not yet generated'}</span>
+      ${p.tagGenerated?`<button class="btn" style="font-size:11px;padding:2px 7px" onclick="markTagGenerated(${p.id},false)">Reset</button>`:''}
+    </div>
+  </div>`:''}
+
+  <div class="df" style="margin-bottom:8px"><label>Notes</label>
+    <textarea onblur="savePrizeField(${p.id},'notes',this.value)">${escHtml(p.notes||'')}</textarea></div>
+
+  <!-- Photo -->
+  <div class="photo-area${p.photo?' has-photo':''}" onclick="event.stopPropagation()">
+    ${p.photo
+      ?`<img src="${p.photo}" alt="Prize photo" onclick=""><input type="file" accept="image/*" onchange="handlePhotoUpload(${p.id},this)">`
+      :`<div class="photo-ph"><i class="ti ti-camera" style="font-size:20px"></i><span>Tap to add photo</span></div><input type="file" accept="image/*" onchange="handlePhotoUpload(${p.id},this)">`}
+  </div>
+
+  <div class="det-actions">
+    ${isAdmin()?`<button class="btn danger" onclick="confirmDeletePrize(${p.id})"><i class="ti ti-trash"></i></button>`:''}
+    ${p.url?`<a href="${escHtml(p.url)}" target="_blank" class="btn"><i class="ti ti-external-link"></i></a>`:''}
+    <button class="btn primary" onclick="closePrizeCard()">Done</button>
+  </div>`;
+}
+
+function closePrizeCard(){_expandedId=null;renderPrizes();}
+
+async function savePrizeField(id,field,val){
+  await updatePrize(id,{[field]:val});
+  renderPrizes();
+}
+async function toggleStage(id,stage){
+  const p=getPrize(id);
+  if(!p) return;
+  await updatePrize(id,{[stage]:!p[stage]});
+  renderPrizes();
+}
+async function markTagGenerated(id,val=true){
+  await updatePrize(id,{tagGenerated:val,tagMade:val?true:false});
+  renderPrizes();
+}
+
+async function confirmDeletePrize(id){
+  if(!confirm('Delete this prize?')) return;
+  await deletePrize(id);
+  _expandedId=null;
+  renderPrizes();
+}
+
+async function handlePhotoUpload(id,input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    const img=new Image();
+    img.onload=async()=>{
+      const canvas=document.createElement('canvas');
+      const max=400;
+      let w=img.width,h=img.height;
+      if(w>max){h=h*max/w;w=max;}
+      if(h>max){w=w*max/h;h=max;}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const dataUrl=canvas.toDataURL('image/jpeg',0.75);
+      await updatePrize(id,{photo:dataUrl});
+      renderPrizes();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Add prize modal ───────────────────────────────────────────────────────────
+async function openAddPrizeModal(){
+  const authors = await getAuthors();
+  showModal(`
+    <h3><i class="ti ti-plus"></i> Add prize</h3>
+    <div class="m-grid">
+      <div class="mf full"><label>Prize name</label>
+        <input type="text" id="ap-name" placeholder="What is the prize?"></div>
+      <div class="mf"><label>Category</label>
+        <select id="ap-cat">
+          ${['Unassigned','BINGO','Raffle','Medium','Small','SWAG Bag'].map(c=>`<option>${c}</option>`).join('')}
+        </select></div>
+      <div class="mf"><label>Item type</label>
+        <select id="ap-itype" onchange="apToggleItemType(this.value)">
+          <option value="Other">Other</option>
+          <option value="Book">Book</option>
+          <option value="Clothing">Clothing</option>
+        </select></div>
+      <div class="mf" id="ap-size-row" style="display:none"><label>Clothing size</label>
+        <select id="ap-size">
+          ${['','S','M','L','XL','XXL','XXXL','Custom'].map(s=>`<option value="${s}">${s||'Select…'}</option>`).join('')}
+        </select>
+        <input type="text" id="ap-size-custom" placeholder="Custom size…" style="margin-top:4px;width:100%;display:none"
+          oninput="if(this.value)document.getElementById('ap-size-custom').style.display='block'">
+      </div>
+      <div class="mf"><label>Est. value ($)</label>
+        <input type="text" inputmode="decimal" id="ap-val" placeholder="0.00"></div>
+      <div class="mf"><label>Qty</label>
+        <input type="number" id="ap-qty" value="1" min="1"></div>
+      <div class="mf"><label>Location</label>
+        <input type="text" id="ap-loc" placeholder="Where is it?"></div>
+      <div class="mf"><label>URL / link</label>
+        <input type="text" id="ap-url" placeholder="https://…"></div>
+    </div>
+    <div style="margin:10px 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)">Donor (optional)</div>
+    <div class="donor-toggle">
+      <button class="dt-opt active" id="dt-none" onclick="apSetDonorType('none')">None</button>
+      <button class="dt-opt" id="dt-author" onclick="apSetDonorType('author')">Author</button>
+      <button class="dt-opt" id="dt-business" onclick="apSetDonorType('business')">Business</button>
+    </div>
+    <div id="ap-donor-fields" style="display:none">
+      <div class="m-grid">
+        <div class="mf full" id="ap-author-field"><label>Author</label>
+          <select id="ap-author">
+            <option value="">— select author —</option>
+            ${authors.map(a=>`<option>${escHtml(a)}</option>`).join('')}
+          </select></div>
+        <div class="mf full" id="ap-biz-field" style="display:none"><label>Business name</label>
+          <input type="text" id="ap-biz" placeholder="Business name"></div>
+        <div class="mf full"><label>Donor website (for QR code)</label>
+          <input type="text" id="ap-qr" placeholder="https://…"></div>
+        <div class="mf"><label>QR type</label>
+          <select id="ap-qrtype">
+            <option value="website">Website</option>
+            <option value="instagram">Instagram</option>
+          </select></div>
+        <div class="mf"><label>Pronoun</label>
+          <select id="ap-pronoun">
+            <option value="their">their</option>
+            <option value="her">her</option>
+            <option value="his">his</option>
+          </select></div>
+        <div class="mf full"><label>Donor logo URL (Google Drive)</label>
+          <input type="text" id="ap-logo" placeholder="https://drive.google.com/…"></div>
+      </div>
+    </div>
+    <div class="mf full" style="margin-top:8px"><label>Notes</label>
+      <textarea id="ap-notes" rows="2" placeholder="Any notes…"></textarea></div>
     <div class="m-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn primary" onclick="doAddPrize()"><i class="ti ti-plus"></i> Add prize</button>
+      <button class="btn primary" onclick="doAddPrize()"><i class="ti ti-check"></i> Add prize</button>
     </div>`);
+  setTimeout(()=>document.getElementById('ap-name')?.focus(),50);
 }
 
-function setDonorType(t) {
-  _donorTypeModal = t;
-  ['author', 'business', 'none'].forEach(x => {
-    const b = document.getElementById('dt-' + x);
-    if (b) b.classList.toggle('active', x === t);
+let _apDonorType='none';
+function apSetDonorType(t){
+  _apDonorType=t;
+  ['none','author','business'].forEach(x=>{
+    document.getElementById('dt-'+x)?.classList.toggle('active',x===t);
   });
-  const af = document.getElementById('dt-author-f');
-  const bf = document.getElementById('dt-biz-f');
-  if (af) af.style.display = t === 'author' ? 'block' : 'none';
-  if (bf) bf.style.display = t === 'business' ? 'block' : 'none';
+  document.getElementById('ap-donor-fields').style.display=t==='none'?'none':'block';
+  document.getElementById('ap-author-field').style.display=t==='author'?'block':'none';
+  document.getElementById('ap-biz-field').style.display=t==='business'?'block':'none';
+}
+function apToggleItemType(v){
+  document.getElementById('ap-size-row').style.display=v==='Clothing'?'block':'none';
 }
 
-async function doAddPrize() {
-  const name = (document.getElementById('mn') || {}).value?.trim();
-  if (!name) { alert('Please enter a prize name.'); return; }
-
-  const donor = _donorTypeModal === 'author'
-    ? (document.getElementById('mauth') || {}).value || ''
-    : _donorTypeModal === 'business'
-      ? (document.getElementById('mbiz') || {}).value || ''
-      : '';
-
-  setSyncState('syncing');
-  await addPrize({
-    cat: document.getElementById('mc').value,
+async function doAddPrize(){
+  const name=document.getElementById('ap-name')?.value?.trim();
+  if(!name){alert('Please enter a prize name.');return;}
+  const donorType=_apDonorType==='none'?'':_apDonorType;
+  const donor=_apDonorType==='author'
+    ?(document.getElementById('ap-author')?.value||'')
+    :_apDonorType==='business'
+    ?(document.getElementById('ap-biz')?.value?.trim()||'')
+    :'';
+  const clothingSize=document.getElementById('ap-size')?.value||'';
+  const clothingSizeCustom=clothingSize==='Custom'?(document.getElementById('ap-size-custom')?.value?.trim()||''):'';
+  const fields={
     name,
-    qty: +(document.getElementById('mq').value) || 1,
-    paid: +(document.getElementById('mpaid').value) || 0,
-    value: +(document.getElementById('mv').value) || 0,
-    loc: document.getElementById('ml').value,
-    donor,
-    donorType: _donorTypeModal,
-    notes: document.getElementById('mnotes').value,
-    url: document.getElementById('murl').value,
-    needTag: document.getElementById('mtag').value === 'yes',
-    tagMade: false, tagPrinted: false, tagAttached: false, onTote: false,
-    photo: null
-  });
-  setSyncState('live');
+    cat:document.getElementById('ap-cat')?.value||'Unassigned',
+    itemType:document.getElementById('ap-itype')?.value||'Other',
+    clothingSize,clothingSizeCustom,
+    value:parseFloat(document.getElementById('ap-val')?.value)||0,
+    qty:parseInt(document.getElementById('ap-qty')?.value)||1,
+    loc:document.getElementById('ap-loc')?.value?.trim()||'',
+    url:document.getElementById('ap-url')?.value?.trim()||'',
+    donor,donorType,
+    donorQRDest:document.getElementById('ap-qr')?.value?.trim()||'',
+    donorQRType:document.getElementById('ap-qrtype')?.value||'website',
+    donorPronoun:document.getElementById('ap-pronoun')?.value||'their',
+    donorLogoUrl:document.getElementById('ap-logo')?.value?.trim()||'',
+    notes:document.getElementById('ap-notes')?.value?.trim()||'',
+  };
+  const prize=await addPrize(fields);
+  _newId=prize.id;
   closeModal();
+  renderPrizes();
+  showToast('Prize added!');
 }
 
-// ── Bundle prizes feature ─────────────────────────────────────────────────────
-
-let _bundleMode = false;
-
-function toggleBundleMode() {
-  _bundleMode = !_bundleMode;
+// ── Bundle prizes ─────────────────────────────────────────────────────────────
+function toggleBundleMode(){
+  _bundleMode=!_bundleMode;
   _selectedForBundle.clear();
   renderPrizes();
-  updateBundleBar();
 }
-
-function clearBundleSelection() {
-  _bundleMode = false;
+function clearBundleSelection(){
+  _bundleMode=false;
   _selectedForBundle.clear();
   renderPrizes();
-  updateBundleBar();
 }
-
-function updateBundleBar() {
-  const bar = document.getElementById('bundle-bar');
-  if (!bar) return;
-  if (_bundleMode && _selectedForBundle.size > 0) {
-    bar.style.display = 'flex';
-    const countEl = document.getElementById('bundle-count');
-    if (countEl) countEl.textContent = _selectedForBundle.size;
-  } else {
-    bar.style.display = 'none';
-  }
-}
-
-function toggleBundleSelect(id, e) {
+function toggleBundleSelect(id,e){
   e.stopPropagation();
-  if (_selectedForBundle.has(id)) {
-    _selectedForBundle.delete(id);
-  } else {
-    _selectedForBundle.add(id);
-  }
-  updateBundleBar();
-  // Just update the checkbox visually without full re-render
-  const cb = document.getElementById('bsel-' + id);
-  if (cb) cb.checked = _selectedForBundle.has(id);
+  if(_selectedForBundle.has(id)) _selectedForBundle.delete(id);
+  else _selectedForBundle.add(id);
+  renderPrizes();
 }
 
-function openBundleModal() {
-  if (_selectedForBundle.size < 2) {
-    alert('Please select at least 2 items to bundle together.');
-    return;
-  }
-
-  const prizes    = getPrizes();
-  const selected  = prizes.filter(p => _selectedForBundle.has(p.id));
-  const totalVal  = selected.reduce((s, p) => s + ((+p.value || 0) * (+p.qty || 1)), 0);
-  const totalPaid = selected.reduce((s, p) => s + (+p.paid || 0), 0);
-
-  // Suggest a name from items
-  const suggestedName = selected.map(p => p.name).join(' + ').slice(0, 80);
-
+function openBundleModal(){
+  if(_selectedForBundle.size<2){alert('Select at least 2 items to bundle.');return;}
+  const prizes=getPrizes();
+  const selected=prizes.filter(p=>_selectedForBundle.has(p.id));
+  const totalVal=selected.reduce((s,p)=>s+((+p.value||0)*(+p.qty||1)),0);
+  const totalPaid=selected.reduce((s,p)=>s+(+p.paid||0),0);
+  const suggested=selected.map(p=>p.name).join(' + ').slice(0,80);
   showModal(`
     <h3>Bundle ${selected.length} items into one prize</h3>
-    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px;margin-bottom:12px;max-height:160px;overflow-y:auto">
-      ${selected.map(p => `<div style="font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between">
-        <span>${escHtml(p.name)}</span>
-        <span style="color:var(--text2);margin-left:8px">${p.value ? '$' + (+p.value).toFixed(2) : '—'}</span>
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px;margin-bottom:12px;max-height:150px;overflow-y:auto">
+      ${selected.map(p=>`<div style="font-size:12px;padding:3px 0;border-bottom:.5px solid var(--border);display:flex;justify-content:space-between">
+        <span>${escHtml(p.name)}</span><span style="color:var(--text2)">${p.value?fmt$(p.value):''}</span>
       </div>`).join('')}
       <div style="font-size:12px;font-weight:600;padding:5px 0;display:flex;justify-content:space-between">
-        <span>Combined value</span><span style="color:var(--green)">$${totalVal.toFixed(2)}</span>
+        <span>Combined value</span><span style="color:var(--green)">${fmt$(totalVal)}</span>
       </div>
     </div>
-    <div class="field"><label>Bundle prize name</label>
-      <input type="text" id="bn-name" value="${escHtml(suggestedName)}" placeholder="e.g. Book Lover Bundle">
-    </div>
-    <div class="field"><label>Category for combined prize</label>
-      <select id="bn-cat">
-        ${['BINGO','Raffle','Medium','Small','SWAG Bag','Unassigned'].map(c => `<option${c==='BINGO'?' selected':''}>${c}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field"><label>Location</label>
-      <input type="text" id="bn-loc" placeholder="Where will the bundle be kept?" list="bn-loc-list">
-      <datalist id="bn-loc-list">${[...new Set(getPrizes().map(p=>p.loc).filter(Boolean))].map(l=>`<option value="${escHtml(l)}">`).join('')}</datalist>
-    </div>
-    <div class="field"><label>Notes (optional)</label>
-      <textarea id="bn-notes" rows="2" placeholder="Any notes about this bundle…"></textarea>
+    <div class="m-grid">
+      <div class="mf full"><label>Bundle name</label>
+        <input type="text" id="bn-name" value="${escHtml(suggested)}" placeholder="e.g. Book Lover Bundle"></div>
+      <div class="mf"><label>Category</label>
+        <select id="bn-cat">
+          ${['BINGO','Raffle','Medium','Small','SWAG Bag','Unassigned'].map(c=>`<option${c==='BINGO'?' selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div class="mf"><label>Location</label>
+        <input type="text" id="bn-loc" placeholder="Where will it be stored?"></div>
+      <div class="mf full"><label>Notes</label>
+        <textarea id="bn-notes" rows="2" placeholder="Any notes about this bundle…"></textarea></div>
     </div>
     <div style="font-size:11px;color:var(--text2);background:var(--bg2);padding:8px;border-radius:var(--radius-sm);margin-bottom:8px">
-      The ${selected.length} original items will be kept but marked as "Bundled into [this prize name]". You can still see them with the "Show bundled" filter.
+      The ${selected.length} originals will be kept but marked as "Bundled into [name]". Use the "Show bundled items" filter to see them.
     </div>
     <div class="m-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn primary" onclick="doBundle(${ totalVal.toFixed(2) }, ${totalPaid.toFixed(2)})">
-        <i class="ti ti-package"></i> Create bundle
-      </button>
+      <button class="btn primary" onclick="doBundle(${totalVal},${totalPaid})"><i class="ti ti-package"></i> Create bundle</button>
     </div>`);
-  setTimeout(() => {
-    const n = document.getElementById('bn-name');
-    if (n) { n.focus(); n.select(); }
-  }, 50);
+  setTimeout(()=>{const n=document.getElementById('bn-name');if(n){n.focus();n.select();}},50);
 }
 
-async function doBundle(totalVal, totalPaid) {
-  const name = document.getElementById('bn-name')?.value?.trim();
-  if (!name) { alert('Please enter a name for the bundle.'); return; }
-
-  const cat   = document.getElementById('bn-cat')?.value || 'BINGO';
-  const loc   = document.getElementById('bn-loc')?.value?.trim() || '';
-  const notes = document.getElementById('bn-notes')?.value?.trim() || '';
-
-  const selectedIds = [..._selectedForBundle];
-  const prizes      = getPrizes();
-  const selected    = prizes.filter(p => selectedIds.includes(p.id));
-
-  // Gather donors (unique)
-  const donors = [...new Set(selected.map(p => p.donor).filter(Boolean))];
-
-  // Create the bundle prize
-  const bundlePrize = await addPrize({
-    cat,
-    name,
-    qty: 1,
-    paid: +totalPaid,
-    value: +totalVal,
-    loc,
-    donor: donors.join(', '),
-    donorType: donors.length === 1
-      ? (selected.find(p=>p.donor===donors[0])?.donorType || 'business')
-      : 'business',
-    notes: notes || `Bundle of ${selected.length} items: ${selected.map(p=>p.name).join(', ')}`,
-    url: '',
-    needTag: true,
-    tagMade: false, tagPrinted: false, tagAttached: false, onTote: false,
-    photo: null,
-    isBundle: true,
-    bundleContains: selectedIds,
+async function doBundle(totalVal,totalPaid){
+  const name=document.getElementById('bn-name')?.value?.trim();
+  if(!name){alert('Please enter a name.');return;}
+  const selectedIds=[..._selectedForBundle];
+  const prizes=getPrizes();
+  const selected=prizes.filter(p=>selectedIds.includes(p.id));
+  const donors=[...new Set(selected.map(p=>p.donor).filter(Boolean))];
+  const bundle=await addPrize({
+    cat:document.getElementById('bn-cat')?.value||'BINGO',
+    name,qty:1,paid:+totalPaid,value:+totalVal,
+    loc:document.getElementById('bn-loc')?.value?.trim()||'',
+    donor:donors.join(', '),
+    notes:document.getElementById('bn-notes')?.value?.trim()||`Bundle of ${selected.length} items: ${selected.map(p=>p.name).join(', ')}`,
+    isBundle:true,bundleContains:selectedIds,
   });
-
-  // Mark originals as bundled
-  for (const p of selected) {
-    await updatePrize(p.id, {
-      bundledInto: bundlePrize.id,
-      bundledIntoName: name,
-      cat: p.cat, // keep original category
-    });
+  for(const p of selected){
+    await updatePrize(p.id,{bundledInto:bundle.id,bundledIntoName:name});
   }
-
   closeModal();
   clearBundleSelection();
-  showToast(`Bundle "${name}" created from ${selected.length} items`);
+  showToast(`Bundle "${name}" created`);
 }
-
-// Override filteredSortedPrizes to handle bundled items
-const _origFilterSort = filteredSortedPrizes;
-filteredSortedPrizes = function() {
-  let list = _origFilterSort();
-  // Unless "show bundled" filter is on, hide items that are bundled into something else
-  const tag = (document.getElementById('filter-tag')||{}).value || '';
-  if (tag !== 'bundled') {
-    list = list.filter(p => !p.bundledInto);
-  }
-  return list;
-};
-
-// Patch filter-tag options to include bundled filter (called after DOM ready)
-function patchFilterTagOptions() {
-  const sel = document.getElementById('filter-tag');
-  if (!sel) return;
-  if (!sel.querySelector('option[value="bundled"]')) {
-    const opt = document.createElement('option');
-    opt.value = 'bundled';
-    opt.textContent = 'Show bundled items';
-    sel.appendChild(opt);
-  }
-}
-
-// Patch prizeCardHTML to show bundle UI
-const _origPrizeCardHTML = prizeCardHTML;
-prizeCardHTML = function(p) {
-  let html = _origPrizeCardHTML(p);
-
-  // Add bundle checkbox if in bundle mode
-  if (_bundleMode && !p.bundledInto && !p.isBundle) {
-    const checked = _selectedForBundle.has(p.id);
-    html = html.replace(
-      `<div class="prize-card" id="pc-${p.id}">`,
-      `<div class="prize-card" id="pc-${p.id}" style="border-color:${checked?'var(--purple)':''}">
-        <div style="position:absolute;top:10px;right:10px;z-index:2">
-          <input type="checkbox" id="bsel-${p.id}" ${checked?'checked':''} style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer"
-            onchange="toggleBundleSelect(${p.id},event)">
-        </div>`
-    ).replace(`<div class="prize-card" id="pc-${p.id}">`, `<div class="prize-card" id="pc-${p.id}" style="position:relative;${checked?'border-color:var(--purple);border-width:1.5px':''}">
-        <div style="position:absolute;top:10px;right:10px;z-index:2">
-          <input type="checkbox" id="bsel-${p.id}" ${checked?'checked':''} style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer"
-            onchange="toggleBundleSelect(${p.id},event)">
-        </div>`);
-  }
-
-  // Show bundle badge on bundle prizes
-  if (p.isBundle && p.bundleContains) {
-    const count = p.bundleContains.length;
-    html = html.replace(
-      escHtml(p.cat) + '</span>',
-      escHtml(p.cat) + `</span> <span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:10px;font-weight:600"><i class="ti ti-package" style="font-size:10px"></i> Bundle of ${count}</span>`
-    );
-  }
-
-  // Show "bundled into" badge on original items (only shown with filter)
-  if (p.bundledInto && p.bundledIntoName) {
-    html = html.replace(
-      escHtml(p.cat) + '</span>',
-      escHtml(p.cat) + `</span> <span style="font-size:10px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:10px"><i class="ti ti-link" style="font-size:10px"></i> In: ${escHtml(p.bundledIntoName)}</span>`
-    );
-  }
-
-  return html;
-};
-
-// Call patch after each render
-const _origRenderPrizes = renderPrizes;
-renderPrizes = function() {
-  _origRenderPrizes();
-  patchFilterTagOptions();
-};

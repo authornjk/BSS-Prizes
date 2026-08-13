@@ -1,41 +1,28 @@
-/** ui-budget.js */
-function renderBudget() {
-  const el = document.getElementById('budget-content');
-  if (!el) return;
-  const meta = getMeta();
-  const prizes = getPrizes();
-  const catSpent = {};
-  prizes.forEach(p => { catSpent[p.cat] = (catSpent[p.cat] || 0) + (p.paid || 0); });
-  const bCats = Object.keys(meta.budgets);
-  const totalB = bCats.reduce((s, c) => s + (meta.budgets[c] || 0), 0);
-  const totalS = bCats.reduce((s, c) => s + (catSpent[c] || 0), 0);
-  const totalLeft = totalB - totalS;
-  const totalVal = prizes.reduce((s, p) => s + (p.value || 0) * (p.qty || 1), 0);
-
-  el.innerHTML = `
+function renderBudget(){
+  const el=document.getElementById('tab-budget');
+  if(!el) return;
+  const prizes=getPrizes().filter(p=>!p.bundledInto);
+  const totalVal=prizes.reduce((s,p)=>s+((+p.value||0)*(+p.qty||1)),0);
+  const totalPaid=prizes.reduce((s,p)=>s+(+p.paid||0),0);
+  const unpaid=prizes.filter(p=>!p.paid&&p.value>0).length;
+  el.innerHTML=`
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-lbl">Total budget</div><div class="stat-val">${fmtMoney(totalB) || '—'}</div></div>
-      <div class="stat-card"><div class="stat-lbl">Spent</div><div class="stat-val">${totalS > 0 ? fmtMoney(totalS) : '$0.00'}</div></div>
-      <div class="stat-card"><div class="stat-lbl">${totalLeft >= 0 ? 'Remaining' : 'Over budget'}</div><div class="stat-val" style="color:${totalLeft < 0 ? 'var(--red)' : 'var(--green-mid)'}">${totalB > 0 ? fmtMoney(Math.abs(totalLeft)) : '—'}</div></div>
-      <div class="stat-card"><div class="stat-lbl">Donated value</div><div class="stat-val">$${Math.round(totalVal).toLocaleString('en-US')}</div></div>
+      <div class="stat"><div class="stat-lbl">Total prizes</div><div class="stat-val">${prizes.length}</div></div>
+      <div class="stat"><div class="stat-lbl">Total value</div><div class="stat-val">${fmt$(totalVal)}</div></div>
+      <div class="stat"><div class="stat-lbl">Total paid</div><div class="stat-val">${fmt$(totalPaid)}</div></div>
+      <div class="stat"><div class="stat-lbl">Unpaid items</div><div class="stat-val" style="color:${unpaid?'var(--amber)':'var(--green)'}">${unpaid}</div></div>
     </div>
-    ${totalB === 0
-      ? `<div class="empty"><i class="ti ti-settings"></i><span>Set budgets in the Settings tab</span></div>`
-      : bCats.map(c => {
-          const b = meta.budgets[c] || 0, sp = catSpent[c] || 0, left = b - sp;
-          const pct = b > 0 ? Math.min(100, Math.round(sp / b * 100)) : 0;
-          return `<div class="bcard">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-              <span style="font-weight:600;font-size:14px">${c}</span>
-              <span style="font-size:12px;color:var(--text2)">${fmtMoney(sp)} of ${fmtMoney(b)}</span>
-            </div>
-            <div class="prog-bar">
-              <div class="prog-fill" style="width:${pct}%;background:${left >= 0 ? 'var(--purple-mid)' : 'var(--red)'}"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text2)">
-              <span>${pct}% used</span>
-              <span style="color:${left >= 0 ? 'var(--green-mid)' : 'var(--red)'};font-weight:600">${left >= 0 ? fmtMoney(left) + ' left' : fmtMoney(Math.abs(left)) + ' over'}</span>
-            </div>
-          </div>`;
-        }).join('')}`;
+    <div class="card">
+      <div class="card-title">By category</div>
+      ${Object.keys(GOALS).concat(['SWAG Bag','Unassigned']).map(cat=>{
+        const rows=prizes.filter(p=>p.cat===cat);
+        if(!rows.length) return '';
+        const val=rows.reduce((s,p)=>s+((+p.value||0)*(+p.qty||1)),0);
+        const paid=rows.reduce((s,p)=>s+(+p.paid||0),0);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:.5px solid var(--border)">
+          <div><span class="cat-pill cat-${cat.replace(/\s/g,'')}">${cat}</span> <span style="font-size:12px;color:var(--text2);margin-left:4px">${rows.length} prize${rows.length!==1?'s':''}</span></div>
+          <div style="font-size:12px;text-align:right"><div style="font-weight:600">${fmt$(val)}</div><div style="color:var(--text3)">paid: ${fmt$(paid)}</div></div>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
