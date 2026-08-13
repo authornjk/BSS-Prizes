@@ -1,5 +1,5 @@
-// v20260802.1 — bump this version to bust cache on all devices
-const CACHE='soiree-prizes-v20260802.1';
+// v20260813.1 — bump this version to bust cache on all devices
+const CACHE='soiree-prizes-v20260813.1';
 const ASSETS=['./','./index.html','./manifest.json','./css/app.css',
   './js/storage.js','./js/auth.js','./js/state.js','./js/ui-goals.js',
   './js/ui-prizes.js','./js/ui-tags.js','./js/ui-budget.js',
