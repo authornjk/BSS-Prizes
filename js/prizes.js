@@ -260,6 +260,12 @@ function startBundle(anchorId) {
 function toggleBundleSelect(id) {
   if (!_bundleMode) return;
   if (id === _bundleAnchor) return;
+  var p = getPrize(id);
+  // Block adding prizes already in a different bundle
+  if (p && p.bundledInto) {
+    showToast('This prize is already in a bundle', 'error');
+    return;
+  }
   if (_bundleSelected.has(id)) { _bundleSelected.delete(id); } else { _bundleSelected.add(id); }
   renderPrizes();
 }
@@ -305,7 +311,10 @@ async function createBundle() {
     notes:'Bundle: '+sel.map(function(p){return p.name;}).join(', ')});
   for (var id of _bundleSelected) {
     var p=getPrize(id);
-    if(p&&!p.isBundle) await updatePrize(id,{bundledInto:name, bundledIntoId:String(id)});
+    // Only bundle prizes that aren't already in another bundle
+    if(p && !p.isBundle && !p.bundledInto) {
+      await updatePrize(id, {bundledInto: name});
+    }
   }
   document.getElementById('modal-container').innerHTML='';
   _bundleMode=false; _bundleAnchor=null; _bundleSelected=new Set();
@@ -432,7 +441,7 @@ async function showPrizeModal(p, authors, itemTypes) {
   mc.innerHTML = '';
   var overlay = document.createElement('div');
   overlay.className='modal-overlay'; overlay.id='modal-bg';
-  overlay.onclick=function(e){if(e.target===overlay)closeModal();};
+  overlay.onclick=function(e){if(e.target===overlay){_editMode=false;_currentPrizeId=0;closeModal();}};
   var box = document.createElement('div');
   box.className='modal';
 
