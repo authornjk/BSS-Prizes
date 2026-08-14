@@ -29,11 +29,11 @@ async function addPrize(fields) {
   const prize = {
     id,
     name:        '',
-    cat:         'BINGO',
+    cat:         '',
     itemType:    'Misc',
     value:       0,
     paid:        0,
-    qty:         1,
+    qty:         '',
     loc:         '',
     notes:       '',
     donorType:   'none',
@@ -54,9 +54,13 @@ async function addPrize(fields) {
     ...fields
   };
   _prizes[id] = prize;
-  await dbSet('prizes/'+id, prize);
-  await dbSet('meta/nextId', id+1);
   _meta.nextId = id+1;
+  try {
+    await dbSet('prizes/'+id, prize);
+    await dbSet('meta/nextId', id+1);
+  } catch(e) {
+    showToast('Warning: prize saved locally but Firebase sync failed. Check connection.', 'error');
+  }
   return prize;
 }
 
@@ -85,14 +89,20 @@ let _pollInterval = null;
 function startSync(onChange) {
   if (_pollInterval) clearInterval(_pollInterval);
   _pollInterval = setInterval(async () => {
-    const [prizes, authors] = await Promise.all([
-      dbGet('prizes'),
-      loadAuthorsFromHQ()
-    ]);
-    _prizes  = prizes || {};
-    _authors = authors;
-    onChange();
-  }, 20000); // poll every 20 seconds
+    try {
+      const [prizes, authors] = await Promise.all([
+        dbGet('prizes'),
+        loadAuthorsFromHQ()
+      ]);
+      // Only overwrite local prizes if Firebase actually has data
+      // This prevents a failed write from being overwritten by empty Firebase
+      if (prizes && Object.keys(prizes).length > 0) {
+        _prizes = prizes;
+      }
+      if (authors && authors.length > 0) _authors = authors;
+      onChange();
+    } catch(e) {}
+  }, 20000);
 }
 function stopSync() {
   if (_pollInterval) clearInterval(_pollInterval);
