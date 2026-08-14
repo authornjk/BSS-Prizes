@@ -187,7 +187,8 @@ async function showPrizeModal(p, authors, itemTypes) {
 
     <div class="field"><label>Category</label>
       <select id="pm-cat">
-        ${CATEGORIES.map(c=>`<option${(p?.cat||'BINGO')===c?' selected':''}>${c}</option>`).join('')}
+        <option value="">— Select category —</option>
+        ${CATEGORIES.map(c=>`<option${(p?.cat||'')===c?' selected':''}>${c}</option>`).join('')}
       </select>
     </div>
 
@@ -208,7 +209,7 @@ async function showPrizeModal(p, authors, itemTypes) {
         <input type="text" inputmode="decimal" id="pm-paid" value="${p?.paid||''}" placeholder="0.00">
       </div>
       <div class="field"><label>Qty</label>
-        <input type="number" id="pm-qty" value="${p?.qty||1}" min="1">
+        <input type="number" id="pm-qty" value="${p?.qty||''}" placeholder="1" min="1">
       </div>
       <div class="field"><label>Location</label>
         <input type="text" id="pm-loc" value="${escHtml(p?.loc||'')}" placeholder="Where is it?">
@@ -433,10 +434,12 @@ function savePrizeModal() {
 async function doAddPrize() {
   const name = document.getElementById('pm-name')?.value?.trim();
   if (!name) { showToast('Please enter a prize name','error'); return; }
+  const cat = document.getElementById('pm-cat')?.value;
+  if (!cat) { showToast('Please select a category','error'); return; }
   const donor = getDonorFields();
   const prize = await addPrize({
     name,
-    cat:      document.getElementById('pm-cat')?.value || 'BINGO',
+    cat:      cat,
     itemType: document.getElementById('pm-item-type')?.value || 'Misc',
     value:    parseMoney(document.getElementById('pm-value')?.value),
     paid:     parseMoney(document.getElementById('pm-paid')?.value),
