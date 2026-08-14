@@ -108,7 +108,7 @@ function renderGoals() {
           escHtml(notes.substring(0,50))+(notes.length>50?'…':'')+'</div>' : '');
     html +=
       '<div class="goal-card" style="border-color:var(--'+cls+')">'+
-        '<div style="font-size:11px;font-weight:600;color:var(--text2)">'+cat+'</div>'+
+        '<div style="font-size:11px;font-weight:600;color:var(--text2)">'+( cat==='BINGO' ? 'Prizes' : cat)+'</div>'+
         '<div style="display:flex;align-items:baseline;gap:3px;margin:4px 0">'+
           '<span style="font-size:22px;font-weight:700;color:var(--'+cls+')">'+have+'</span>'+
           '<span style="font-size:12px;color:var(--text3)">/ '+goalDisplay+'</span>'+
