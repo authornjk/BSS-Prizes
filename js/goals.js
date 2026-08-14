@@ -54,14 +54,45 @@ function renderGoals() {
         }</span>
       </div>
       <div style="font-size:10px;color:var(--${cls})">${need>0?need+' needed':'✓ Done'}</div>
-      ${isAuto?'<div style="font-size:9px;color:var(--text3)">attendees+10</div>':''}
-    </div>`;
+      ${isAuto
+        ? '<div style="font-size:9px;color:var(--text3)">attendees+10</div>'
+        : '<button onclick="openGoalNotes(''+cat+'')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:2px;margin-top:2px" title="Add notes"><i class=\"ti ti-pencil\" style=\"font-size:11px\"></i></button>'
+      }
+      ${!isAuto && localStorage.getItem('goal_notes_'+cat) ? 
+        '<div style="font-size:9px;color:var(--text3);margin-top:3px;text-align:left;padding:0 2px;word-break:break-word">'+
+        escHtml(localStorage.getItem('goal_notes_'+cat)).substring(0,60)+
+        (localStorage.getItem('goal_notes_'+cat).length>60?'…':'')+'</div>' 
+        : ''}
+    </div>\`;
   }).join('') + `
     <div class="goal-card">
       <div style="font-size:11px;font-weight:600;color:var(--text2)">SWAG Bag</div>
       <div style="font-size:22px;font-weight:700;margin:4px 0">${prizes.filter(p=>p.cat==='SWAG Bag').length}</div>
       <div style="font-size:10px;color:var(--text3)">no limit</div>
     </div>`;
+}
+
+function openGoalNotes(cat) {
+  const key = 'goal_notes_'+cat;
+  const current = localStorage.getItem(key)||'';
+  showModal(`
+    <h3>${cat} notes</h3>
+    <div class="field"><label>Notes for ${cat} prizes</label>
+      <textarea id="gn-notes" rows="4" placeholder="e.g. Farthest traveled, Book bingo winner…">${escHtml(current)}</textarea>
+    </div>
+    <div class="m-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveGoalNotes('${cat}')"><i class="ti ti-check"></i> Save</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('gn-notes')?.focus(),50);
+}
+
+function saveGoalNotes(cat) {
+  const notes = document.getElementById('gn-notes')?.value?.trim()||'';
+  localStorage.setItem('goal_notes_'+cat, notes);
+  closeModal();
+  showToast('Notes saved');
+  renderGoals();
 }
 
 async function renderBudgetBar(prizes, el) {
