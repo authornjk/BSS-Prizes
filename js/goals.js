@@ -23,6 +23,73 @@ async function loadBINGOGoal() {
 function getGoalNotes(cat) {
   return localStorage.getItem('goal_notes_'+cat)||'';
 }
+function openGoalPrizeList(cat) {
+  // Load current list from localStorage
+  var key = 'goal_prize_list_'+cat;
+  var items = JSON.parse(localStorage.getItem(key)||'[]');
+
+  function renderListModal() {
+    var mc = document.getElementById('modal-container');
+    mc.innerHTML = '';
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-bg';
+    overlay.onclick = function(e){ if(e.target===overlay) closeModal(); };
+    var box = document.createElement('div');
+    box.className = 'modal';
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'modal-close';
+    closeBtn.innerHTML = '<i class="ti ti-x"></i>';
+    closeBtn.onclick = closeModal;
+    var h3 = document.createElement('h3');
+    h3.textContent = cat+' prizes ('+items.length+')';
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--text2);margin-bottom:10px';
+    sub.textContent = 'Each line = one prize slot. Count drives the goal number.';
+    var listDiv = document.createElement('div');
+    listDiv.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:300px;overflow-y:auto';
+    items.forEach(function(item, i) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--radius-sm)';
+      var num = document.createElement('span');
+      num.style.cssText = 'font-size:12px;color:var(--text3);font-weight:600;min-width:20px';
+      num.textContent = (i+1)+'.';
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = item;
+      inp.placeholder = 'Prize description…';
+      inp.style.cssText = 'flex:1;font-size:13px;border:none;background:transparent;color:var(--text);font-family:inherit;padding:0';
+      inp.onblur = (function(idx){ return function(){ items[idx]=this.value; localStorage.setItem(key,JSON.stringify(items)); }; })(i);
+      var del = document.createElement('button');
+      del.innerHTML = '<i class="ti ti-trash" style="font-size:13px"></i>';
+      del.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--text3)';
+      del.onclick = function(){ items.splice(i,1); localStorage.setItem(key,JSON.stringify(items)); saveGoal(cat,items.length); renderGoals(); renderListModal(); };
+      row.appendChild(num); row.appendChild(inp); row.appendChild(del);
+      listDiv.appendChild(row);
+    });
+    var addBtn = document.createElement('button');
+    addBtn.className = 'btn primary';
+    addBtn.innerHTML = '<i class="ti ti-plus"></i> Add prize slot';
+    addBtn.onclick = function(){ items.push(''); localStorage.setItem(key,JSON.stringify(items)); saveGoal(cat,items.length); renderGoals(); renderListModal(); };
+    var actions = document.createElement('div');
+    actions.className = 'm-actions';
+    var doneBtn = document.createElement('button');
+    doneBtn.className = 'btn primary';
+    doneBtn.textContent = 'Done';
+    doneBtn.onclick = function(){ saveGoal(cat,items.length); renderGoals(); closeModal(); };
+    actions.appendChild(doneBtn);
+    box.appendChild(closeBtn);
+    box.appendChild(h3);
+    box.appendChild(sub);
+    box.appendChild(listDiv);
+    box.appendChild(addBtn);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    mc.appendChild(overlay);
+  }
+  renderListModal();
+}
+
 function openGoalNotes(cat) {
   var current = getGoalNotes(cat);
   var mc = document.getElementById('modal-container');
@@ -88,7 +155,10 @@ function renderGoals() {
   var cats = ['BINGO','Raffle','Medium','Small'];
   var html = '';
   cats.forEach(function(cat) {
-    var goal = goals[cat] || 0;
+    var listKey = 'goal_prize_list_'+cat;
+    var prizeListItems = (cat==='Medium'||cat==='Small') ? JSON.parse(localStorage.getItem(listKey)||'[]') : null;
+    var goal = prizeListItems ? prizeListItems.length : (goals[cat] || 0);
+    if (prizeListItems && goals[cat] !== prizeListItems.length) saveGoal(cat, prizeListItems.length);
     var have = prizes.filter(function(p){ return p.cat===cat; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
     var need = Math.max(0, goal-have);
     var cls  = have>=goal ? 'green' : need<=5 ? 'amber' : 'red';
