@@ -34,8 +34,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--purple)}
 .field{margin-bottom:10px}
 .field label{font-size:11px;color:var(--text2);display:block;margin-bottom:3px}
 .field input,.field select,.field textarea{width:100%}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:calc(var(--safe-top)+16px) 12px 80px;z-index:200;overflow-y:auto}
-.modal{background:var(--bg);border-radius:var(--radius-lg);padding:1.25rem;width:100%;max-width:520px;position:relative;flex-shrink:0}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:calc(var(--safe-top)+16px) 8px 80px;z-index:200;overflow-y:auto;overflow-x:hidden}
+.modal{background:var(--bg);border-radius:var(--radius-lg);padding:1rem;width:100%;max-width:520px;position:relative;flex-shrink:0;overflow-x:hidden}
 .modal h3{font-size:15px;font-weight:600;margin-bottom:1rem}
 .modal-close{position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:18px}
 .m-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:1rem;flex-wrap:wrap}
