@@ -5,14 +5,23 @@ let _authors = [];
 
 // ── Load ───────────────────────────────────────────────────────────────────
 async function loadAll() {
-  const [prizes, meta, authors] = await Promise.all([
-    dbGet('prizes'),
-    dbGet('meta'),
-    loadAuthorsFromHQ()
-  ]);
-  _prizes  = prizes || {};
-  if (meta) _meta = {..._meta, ...meta};
-  _authors = authors;
+  try {
+    const [prizes, meta, authors] = await Promise.all([
+      dbGet('prizes'),
+      dbGet('meta'),
+      loadAuthorsFromHQ()
+    ]);
+    // Only update if Firebase actually returned data
+    if (prizes && typeof prizes === 'object' && Object.keys(prizes).length > 0) {
+      _prizes = prizes;
+    }
+    if (meta) _meta = {..._meta, ...meta};
+    if (authors && authors.length > 0) _authors = authors;
+    updateSyncStatus('connected');
+  } catch(e) {
+    updateSyncStatus('error');
+    console.error('loadAll failed:', e);
+  }
 }
 
 // ── Getters ────────────────────────────────────────────────────────────────
@@ -58,8 +67,11 @@ async function addPrize(fields) {
   try {
     await dbSet('prizes/'+id, prize);
     await dbSet('meta/nextId', id+1);
+    updateSyncStatus('connected');
+    showToast('Prize saved to Firebase ✓');
   } catch(e) {
-    showToast('Warning: prize saved locally but Firebase sync failed. Check connection.', 'error');
+    updateSyncStatus('error');
+    showToast('Firebase error — prize stored locally only. Check Settings.', 'error');
   }
   return prize;
 }
@@ -67,7 +79,13 @@ async function addPrize(fields) {
 async function updatePrize(id, fields) {
   if (!_prizes[id]) return;
   _prizes[id] = {..._prizes[id], ...fields, _mod: Date.now()};
-  await dbSet('prizes/'+id, _prizes[id]);
+  try {
+    await dbSet('prizes/'+id, _prizes[id]);
+    updateSyncStatus('connected');
+  } catch(e) {
+    updateSyncStatus('error');
+    showToast('Firebase error — change stored locally only.', 'error');
+  }
   return _prizes[id];
 }
 
@@ -86,6 +104,21 @@ async function addItemType(name) {
 
 // ── Sync poll ────────────────────────────────────────────────────────────
 let _pollInterval = null;
+function updateSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (status === 'connected') {
+    el.innerHTML = '<i class="ti ti-cloud-check" style="font-size:13px"></i> Synced';
+    el.style.color = 'var(--green)';
+  } else if (status === 'error') {
+    el.innerHTML = '<i class="ti ti-cloud-off" style="font-size:13px"></i> Sync error';
+    el.style.color = 'var(--red)';
+  } else {
+    el.innerHTML = '<i class="ti ti-refresh" style="font-size:13px;animation:spin 1s linear infinite"></i> Syncing…';
+    el.style.color = 'var(--text3)';
+  }
+}
+
 function startSync(onChange) {
   if (_pollInterval) clearInterval(_pollInterval);
   _pollInterval = setInterval(async () => {
