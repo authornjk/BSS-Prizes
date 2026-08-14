@@ -299,6 +299,34 @@ function toggleBundleSelect(id) {
 function cancelBundle() {
   _bundleMode = false; _bundleAnchor = null; _bundleSelected = new Set(); renderPrizes();
 }
+
+// ── Prize modal state & save handler ─────────────────────────────────────────
+var _currentPrizeId = 0;
+var _editMode = false;
+
+function savePrizeModal() {
+  if (_editMode && _currentPrizeId) {
+    doEditPrize(_currentPrizeId);
+  } else {
+    doAddPrize();
+  }
+}
+
+// ── Logo upload ───────────────────────────────────────────────────────────────
+async function handleLogoUpload(input) {
+  var file = input.files[0];
+  if (!file) return;
+  showToast('Processing logo…');
+  var full  = await compressImage(file, 800, 0.8);
+  var thumb = await makeThumbnail(full, 200, 0.7);
+  var logoInput = document.getElementById('pm-logo');
+  if (logoInput) logoInput.value = full;
+  var preview = document.getElementById('pm-logo-preview');
+  if (preview) preview.innerHTML = '<img src="'+thumb+'" style="height:50px;border-radius:6px;border:.5px solid var(--border)">';
+  showToast('Logo ready ✓');
+  input.value = '';
+}
+
 function finishBundle() {
   if (_bundleSelected.size < 2) { showToast('Select at least 2 prizes to bundle','error'); return; }
   var mc = document.getElementById('modal-container');
