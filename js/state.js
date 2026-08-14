@@ -24,6 +24,7 @@ async function loadAll() {
     }
     if (meta && typeof meta === 'object') _meta = {..._meta, ...meta};
     if (authors && authors.length > 0) _authors = authors;
+    saveBackup();
     updateSyncStatus('connected');
   } catch(e) {
     updateSyncStatus('error');
@@ -96,6 +97,7 @@ async function addPrize(fields) {
     }
     await dbSet('meta/nextId', id+1);
     updateSyncStatus('connected');
+    saveBackup();
     showToast('Prize saved ✓');
   } catch(e) {
     updateSyncStatus('error');
@@ -112,7 +114,10 @@ async function updatePrize(id, fields) {
   _prizes[id] = {..._prizes[id], ...fields, photos, _mod: Date.now()};
   const toSave  = {..._prizes[id], photos: thumbsOnly};
   try {
+    // Save with p_ key (migrates old integer-keyed prizes to new format)
     await dbSet('prizes/p_'+id, toSave);
+    // Delete old integer key if it existed
+    try { await dbDelete('prizes/'+id); } catch(e) {}
     if (photos.some(p => p.full)) {
       await dbSet('photos/p_'+id, photos.map(p => p.full || p));
     }
@@ -126,7 +131,12 @@ async function updatePrize(id, fields) {
 
 async function deletePrize(id) {
   delete _prizes[id];
-  await dbDelete('prizes/p_'+id);
+  // Try both key formats (old prizes used integer keys, new ones use p_ prefix)
+  try { await dbDelete('prizes/p_'+id); } catch(e) {}
+  try { await dbDelete('prizes/'+id); } catch(e) {}
+  // Also clean up photos
+  try { await dbDelete('photos/p_'+id); } catch(e) {}
+  try { await dbDelete('photos/'+id); } catch(e) {}
 }
 
 async function addItemType(name) {
@@ -139,6 +149,88 @@ async function addItemType(name) {
 
 // ── Sync poll ────────────────────────────────────────────────────────────
 let _pollInterval = null;
+// ── Backup / Restore ─────────────────────────────────────────────────────────
+const BACKUP_KEY = 'soiree_prize_backup';
+
+function saveBackup() {
+  const backup = {
+    prizes: _prizes,
+    meta:   _meta,
+    ts:     Date.now()
+  };
+  try {
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+    // Also push to Firebase
+    dbSet('backup/prizes', _prizes).catch(()=>{});
+    dbSet('backup/meta',   _meta).catch(()=>{});
+    dbSet('backup/ts',     Date.now()).catch(()=>{});
+  } catch(e) {}
+}
+
+function getBackupInfo() {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    const b = JSON.parse(raw);
+    return { ts: b.ts, count: Object.keys(b.prizes||{}).length };
+  } catch(e) { return null; }
+}
+
+async function doBackup() {
+  saveBackup();
+  showToast('Backed up ' + Object.keys(_prizes).length + ' prizes ✓');
+  renderPMSettings();
+}
+
+async function doRestore() {
+  try {
+    // Try Firebase backup first
+    const [fbPrizes, fbMeta, fbTs] = await Promise.all([
+      dbGet('backup/prizes'),
+      dbGet('backup/meta'),
+      dbGet('backup/ts')
+    ]);
+    if (fbPrizes && Object.keys(fbPrizes).length > 0) {
+      const count = Object.keys(fbPrizes).length;
+      const date = fbTs ? new Date(fbTs).toLocaleDateString() : 'unknown date';
+      if (confirm('Restore ' + count + ' prizes from backup on ' + date + '?\n\nThis will overwrite your current prizes. Continue?')) {
+        // Normalize
+        const normalized = {};
+        const items = Array.isArray(fbPrizes) ? fbPrizes : Object.values(fbPrizes);
+        items.forEach(p => { if (p && p.id !== undefined) normalized[p.id] = p; });
+        _prizes = normalized;
+        if (fbMeta) Object.assign(_meta, fbMeta);
+        // Write back to main prizes path
+        await dbSet('prizes', Object.fromEntries(
+          Object.entries(_prizes).map(([k,v]) => ['p_'+v.id, v])
+        ));
+        renderGoals();
+        renderPrizes();
+        showToast('Restored ' + Object.keys(_prizes).length + ' prizes ✓');
+      }
+      return;
+    }
+    // Fall back to localStorage backup
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (raw) {
+      const b = JSON.parse(raw);
+      const count = Object.keys(b.prizes||{}).length;
+      const date = new Date(b.ts).toLocaleDateString();
+      if (confirm('Restore ' + count + ' prizes from local backup on ' + date + '?\n\nThis will overwrite your current prizes. Continue?')) {
+        _prizes = b.prizes || {};
+        if (b.meta) Object.assign(_meta, b.meta);
+        renderGoals();
+        renderPrizes();
+        showToast('Restored ' + count + ' prizes ✓');
+      }
+      return;
+    }
+    showToast('No backup found', 'error');
+  } catch(e) {
+    showToast('Restore failed: ' + e.message, 'error');
+  }
+}
+
 function updateSyncStatus(status) {
   const el = document.getElementById('sync-status');
   if (!el) return;
