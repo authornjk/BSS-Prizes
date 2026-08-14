@@ -366,10 +366,17 @@ async function confirmDeleteBundle(id) {
   if (!b) return;
   var bName = b.name || String(b.id);
   var items = getPrizes().filter(function(p){ return p.bundledInto===bName && !p.isBundle; });
-  if (confirm('Delete bundle "'+escHtml(b.name||'')+'"?\n\nThe '+items.length+' items will be returned to individual prizes.')) {
-    for (var p of items) await updatePrize(p.id, {bundledInto: null});
+  if (confirm('Delete bundle "'+escHtml(b.name||'')+'"?\n\nThe '+items.length+' items inside will be returned as individual prizes. The items themselves will NOT be deleted.')) {
+    // Only unbundle items — do NOT delete them
+    for (var i = 0; i < items.length; i++) {
+      await updatePrize(items[i].id, {bundledInto: null});
+    }
+    // Only delete the bundle record itself
     await deletePrize(id);
-    closeModal(); showToast('Bundle deleted, items restored'); renderPrizes(); renderGoals();
+    closeModal();
+    showToast('Bundle deleted — '+items.length+' prizes returned to list');
+    renderPrizes();
+    renderGoals();
   }
 }
 
