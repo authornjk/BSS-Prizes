@@ -3,22 +3,61 @@
 let _activeTab = 'prizes';
 
 async function boot() {
-  // If localStorage has the old Firebase URL, replace it with the new one
-  const storedUrl = localStorage.getItem('soiree_firebase_url');
-  const oldUrl = 'https://soiree-prizes-default-rtdb.firebaseio.com';
+  // Force new Firebase URL
   const newUrl = 'https://soiree-prizes-2027-default-rtdb.firebaseio.com';
-  if (!storedUrl || storedUrl === oldUrl) {
-    localStorage.setItem('soiree_firebase_url', newUrl);
-    window.FIREBASE_DB_URL = newUrl;
-  }
+  localStorage.setItem('soiree_firebase_url', newUrl);
+  window.FIREBASE_DB_URL = newUrl;
+
   renderShell();
+
+  // Show debug info on screen immediately
+  const dbgEl = document.createElement('div');
+  dbgEl.id = 'debug-panel';
+  dbgEl.style.cssText = 'position:fixed;top:60px;left:0;right:0;background:#1a1a18;color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:999;max-height:200px;overflow-y:auto';
+  dbgEl.innerHTML = 'Booting...<br>Firebase: '+newUrl;
+  document.body.appendChild(dbgEl);
+
+  function dbg(msg) {
+    dbgEl.innerHTML += '<br>' + msg;
+    console.log('[DEBUG]', msg);
+  }
+
   showTab('prizes');
-  setTimeout(() => updateSyncStatus('syncing'), 50);
-  await loadAll();
+
+  try {
+    dbg('Fetching prizes from Firebase...');
+    const prizes = await dbGet('prizes');
+    dbg('prizes response: ' + JSON.stringify(prizes).substring(0,100));
+    if (prizes && typeof prizes === 'object' && Object.keys(prizes).length > 0) {
+      Object.assign(_prizes, prizes);
+      dbg('Loaded ' + Object.keys(prizes).length + ' prizes');
+    } else {
+      dbg('Firebase returned: ' + (prizes === null ? 'null' : prizes));
+    }
+  } catch(e) {
+    dbg('ERROR: ' + e.message);
+  }
+
+  try {
+    const meta = await dbGet('meta');
+    dbg('meta: ' + JSON.stringify(meta));
+    if (meta) Object.assign(_meta, meta);
+  } catch(e) {
+    dbg('meta error: ' + e.message);
+  }
+
+  try {
+    _authors = await loadAuthorsFromHQ();
+    dbg('authors: ' + _authors.length);
+  } catch(e) {
+    dbg('authors error: ' + e.message);
+  }
+
   await loadBINGOGoal();
   renderGoals();
   renderPrizes();
   startSync(() => { renderGoals(); renderPrizes(); });
+  dbg('Boot complete. Prizes in memory: ' + Object.keys(_prizes).length);
 }
 
 function renderShell() {
