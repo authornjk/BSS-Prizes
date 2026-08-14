@@ -5,6 +5,7 @@ let _activeTab = 'prizes';
 async function boot() {
   renderShell();
   showTab('prizes');
+  updateSyncStatus('syncing');
   await loadAll();
   await loadBINGOGoal();
   renderGoals();
@@ -20,7 +21,10 @@ function renderShell() {
           <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">Bookish Summer Soirée</div>
           <div style="font-size:11px;color:var(--text2)">Prize Manager</div>
         </div>
-        <div id="user-badge" style="font-size:12px;color:var(--text2)"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="sync-status" style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:3px"></div>
+          <div id="user-badge" style="font-size:12px;color:var(--text2)"></div>
+        </div>
       </div>
 
       <div id="budget-bar" style="padding:0 12px"></div>
