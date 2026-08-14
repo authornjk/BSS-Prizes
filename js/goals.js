@@ -163,7 +163,7 @@ function renderGoals() {
     html += '<div class="goal-card" style="border-color:var(--'+cls+')">'+
       '<div style="font-size:11px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
       '<div style="display:flex;align-items:baseline;gap:3px;margin:4px 0">'+
-        '<span style="font-size:22px;font-weight:700;color:var(--'+cls+')">'+have+'</span>'+
+        '<span style="font-size:18px;font-weight:700;color:var(--'+cls+')">'+have+'</span>'+
         '<span style="font-size:12px;color:var(--text3)">/ '+goalDisplay+'</span>'+
       '</div>'+
       '<div style="font-size:10px;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
