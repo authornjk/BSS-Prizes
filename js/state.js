@@ -11,8 +11,16 @@ async function loadAll() {
       dbGet('meta'),
       loadAuthorsFromHQ()
     ]);
-    if (prizes && typeof prizes === 'object' && Object.keys(prizes).length > 0) {
-      _prizes = prizes;
+    if (prizes && typeof prizes === 'object') {
+      // Firebase converts integer keys to arrays - normalize to object keyed by id
+      const normalized = {};
+      const items = Array.isArray(prizes) ? prizes : Object.values(prizes);
+      items.forEach(p => {
+        if (p && p.id !== undefined) normalized[p.id] = p;
+      });
+      if (Object.keys(normalized).length > 0) {
+        _prizes = normalized;
+      }
     }
     if (meta && typeof meta === 'object') _meta = {..._meta, ...meta};
     if (authors && authors.length > 0) _authors = authors;
@@ -26,7 +34,7 @@ async function loadAll() {
 // Load full photos for a single prize (called when viewing)
 async function loadFullPhotos(id) {
   try {
-    const fulls = await dbGet('photos/'+id);
+    const fulls = await dbGet('photos/p_'+id);
     if (fulls && _prizes[id]) {
       _prizes[id].photos = fulls.map((full, i) => ({
         full,
@@ -81,11 +89,10 @@ async function addPrize(fields) {
   _prizes[id] = {...prize, photos}; // keep full photos in local memory
   _meta.nextId = id+1;
   try {
-    // Save prize (thumbs only) to Firebase
-    await dbSet('prizes/'+id, prize);
-    // Save full photos separately
+    // Use string key "p_1" to prevent Firebase array conversion
+    await dbSet('prizes/p_'+id, prize);
     if (photos.length > 0) {
-      await dbSet('photos/'+id, photos.map(p => p.full));
+      await dbSet('photos/p_'+id, photos.map(p => p.full));
     }
     await dbSet('meta/nextId', id+1);
     updateSyncStatus('connected');
@@ -105,9 +112,9 @@ async function updatePrize(id, fields) {
   _prizes[id] = {..._prizes[id], ...fields, photos, _mod: Date.now()};
   const toSave  = {..._prizes[id], photos: thumbsOnly};
   try {
-    await dbSet('prizes/'+id, toSave);
+    await dbSet('prizes/p_'+id, toSave);
     if (photos.some(p => p.full)) {
-      await dbSet('photos/'+id, photos.map(p => p.full || p));
+      await dbSet('photos/p_'+id, photos.map(p => p.full || p));
     }
     updateSyncStatus('connected');
   } catch(e) {
@@ -119,7 +126,7 @@ async function updatePrize(id, fields) {
 
 async function deletePrize(id) {
   delete _prizes[id];
-  await dbDelete('prizes/'+id);
+  await dbDelete('prizes/p_'+id);
 }
 
 async function addItemType(name) {
