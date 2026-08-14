@@ -344,8 +344,19 @@ function openEditBundle(id) {
   var b = getPrize(id);
   if (!b||!b.isBundle) return;
   var bName = b.name||String(b.id);
-  var items = getPrizes().filter(function(p){return p.bundledInto===bName&&!p.isBundle;});
-  var avail = getPrizes().filter(function(p){return !p.isBundle&&!p.bundledInto&&p.cat!=='Raffle';});
+  var bItems = b.bundleItems || [];
+  var items = getPrizes().filter(function(p){
+    if (p.isBundle) return false;
+    // Match by bundledInto name OR by bundleItems ID array
+    return p.bundledInto===bName || 
+           bItems.indexOf(p.id)>-1 || 
+           bItems.indexOf(String(p.id))>-1 ||
+           bItems.indexOf(+p.id)>-1;
+  });
+  var itemIds = new Set(items.map(function(p){return p.id;}));
+  var avail = getPrizes().filter(function(p){
+    return !p.isBundle && !p.bundledInto && p.cat!=='Raffle' && !itemIds.has(p.id);
+  });
   showModal(
     '<h3>Edit bundle</h3>'+
     '<div class="field"><label>Bundle name</label><input type="text" id="eb-name" value="'+escHtml(b.name||'')+'" style="width:100%"></div>'+
@@ -395,7 +406,15 @@ async function confirmDeleteBundle(id) {
   var b = getPrize(id);
   if (!b) return;
   var bName = b.name||String(b.id);
-  var items = getPrizes().filter(function(p){return p.bundledInto===bName&&!p.isBundle;});
+  var bItems = b.bundleItems || [];
+  var items = getPrizes().filter(function(p){
+    if (p.isBundle) return false;
+    // Match by bundledInto name OR by bundleItems ID array
+    return p.bundledInto===bName || 
+           bItems.indexOf(p.id)>-1 || 
+           bItems.indexOf(String(p.id))>-1 ||
+           bItems.indexOf(+p.id)>-1;
+  });
   if (confirm('Delete bundle "'+escHtml(b.name||'')+'"?\n\n'+items.length+' items will return as individual prizes. They will NOT be deleted.')) {
     for (var i=0;i<items.length;i++) await updatePrize(items[i].id,{bundledInto:null});
     await deletePrize(id);
@@ -405,24 +424,43 @@ async function confirmDeleteBundle(id) {
 
 // ── Add/Edit prize modal ──────────────────────────────────────────────────────
 function savePrizeModal() {
-  if (_editMode && _currentPrizeId) { doEditPrize(_currentPrizeId); } else { doAddPrize(); }
+  // Read prize ID from modal data attribute (more reliable than global state)
+  var box = document.querySelector('.modal[data-prize-id]');
+  var modalPrizeId = box ? parseInt(box.dataset.prizeId) : 0;
+  if (modalPrizeId) {
+    doEditPrize(modalPrizeId);
+  } else if (_editMode && _currentPrizeId) {
+    doEditPrize(_currentPrizeId);
+  } else {
+    doAddPrize();
+  }
 }
 
 async function openAddPrize() {
-  _pendingPhotos = []; _editMode = false; _currentPrizeId = 0;
+  _editMode = false; _currentPrizeId = 0; _pendingPhotos = [];
+  // Small delay to ensure any previous modal is fully gone
+  await new Promise(function(r){ setTimeout(r, 50); });
   await showPrizeModal(null, getAuthors(), getItemTypes());
 }
 
 async function openEditPrize(id) {
+  // Always hard-reset first to ensure clean state
+  _editMode = false; _currentPrizeId = 0; _pendingPhotos = [];
   var p = getPrize(id);
   if (!p) { showToast('Prize not found', 'error'); return; }
-  _pendingPhotos = [...(p.photos||[])]; _editMode = true; _currentPrizeId = id;
+  _pendingPhotos = [...(p.photos||[])];
+  _editMode = true;
+  _currentPrizeId = id;
+  // Small delay to ensure any previous modal is fully gone
+  await new Promise(function(r){ setTimeout(r, 50); });
   await showPrizeModal(p, getAuthors(), getItemTypes());
 }
 
 async function showPrizeModal(p, authors, itemTypes) {
   var isEdit = !!p;
   var donorType = (p&&p.donorType)||'none';
+  // Store the prize ID as a data attribute so savePrizeModal can find it reliably
+  var prizeId = p ? p.id : 0;
 
   var catOptions = '<option value="">— Select category —</option>'+
     CATEGORIES.map(function(c){return '<option'+(p&&p.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
@@ -444,6 +482,7 @@ async function showPrizeModal(p, authors, itemTypes) {
   overlay.onclick=function(e){if(e.target===overlay){_editMode=false;_currentPrizeId=0;closeModal();}};
   var box = document.createElement('div');
   box.className='modal';
+  if (prizeId) box.dataset.prizeId = String(prizeId);
 
   box.innerHTML =
     '<button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>'+
