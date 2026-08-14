@@ -5,7 +5,8 @@ let _activeTab = 'prizes';
 async function boot() {
   renderShell();
   showTab('prizes');
-  updateSyncStatus('syncing');
+  // Small delay so DOM is ready before updating status
+  setTimeout(() => updateSyncStatus('syncing'), 50);
   await loadAll();
   await loadBINGOGoal();
   renderGoals();
