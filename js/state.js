@@ -1,53 +1,58 @@
-// state.js — prize CRUD and Firebase sync
-const GOALS = {BINGO:260,Raffle:7,Medium:10,Small:10};
+// state.js — prize data, Firebase sync, local cache
 let _prizes = {};
-let _meta = {nextId:1, authors:['Jessica Scarlett','Aspen Hadley','Jentry Flint','Amanda P Jones','Sarah M Eden','Shannon Castelton']};
-let _syncStop = null;
-let _onChangeCb = null;
-let _sharedAuthors = null;
+let _meta   = { nextId:1, itemTypes:['Book','Bookish item','Clothing','Jewelry','Misc'] };
+let _authors = [];
 
-function getPrizes(){return Object.values(_prizes);}
-function getPrize(id){return _prizes[id]||null;}
-function getMeta(){return _meta;}
-
-async function getAuthors(){
-  if(_sharedAuthors) return _sharedAuthors;
-  const fromDb = await loadSharedAuthors();
-  if(fromDb&&fromDb.length){_sharedAuthors=fromDb;return fromDb;}
-  return _meta.authors||DEFAULT_USERS.map(u=>u.displayName);
+// ── Load ───────────────────────────────────────────────────────────────────
+async function loadAll() {
+  const [prizes, meta, authors] = await Promise.all([
+    dbGet('prizes'),
+    dbGet('meta'),
+    loadAuthorsFromHQ()
+  ]);
+  _prizes  = prizes || {};
+  if (meta) _meta = {..._meta, ...meta};
+  _authors = authors;
 }
 
-async function loadPrizes(){
-  const data = await dbGet('prizes');
-  _prizes = data||{};
-}
-async function loadMeta(){
-  const data = await dbGet('meta');
-  if(data) _meta={..._meta,...data};
+// ── Getters ────────────────────────────────────────────────────────────────
+function getPrizes()  { return Object.values(_prizes); }
+function getPrize(id) { return _prizes[id] || null; }
+function getAuthors() { return _authors; }
+function getItemTypes() {
+  return _meta.itemTypes || ['Book','Bookish item','Clothing','Jewelry','Misc'];
 }
 
-async function addPrize(fields){
-  await loadMeta();
-  const id = _meta.nextId||1;
-  const now = Date.now();
+// ── Prize CRUD ────────────────────────────────────────────────────────────
+async function addPrize(fields) {
+  const id = _meta.nextId || 1;
   const prize = {
-    id, cat:'Unassigned', name:'', qty:1, paid:0, value:0,
-    loc:'', donor:'', donorType:'author',
-    donorHeadline:'', donorPronoun:'their',
-    donorQRDest:'', donorQRType:'website',
-    donorLogoUrl:'',
-    itemType:'Other', clothingSize:'', clothingSizeCustom:'',
-    needTag:false, tagMade:false, tagPrinted:false, tagAttached:false, onTote:false,
+    id,
+    name:        '',
+    cat:         'BINGO',
+    itemType:    'Misc',
+    value:       0,
+    paid:        0,
+    qty:         1,
+    loc:         '',
+    notes:       '',
+    donorType:   'none',
+    donor:       '',
+    donorWebsite:'',
+    donorQRType: 'website',
+    donorPronoun:'their',
+    donorLogo:   '',
+    photos:      [],   // array of {full: base64, thumb: base64}
+    needTag:     false,
+    tagMade:     false,
+    tagPrinted:  false,
+    tagAttached: false,
+    onTote:      false,
     tagGenerated:false,
-    notes:'', url:'', photo:null,
-    bundledInto:null, bundledIntoName:'', isBundle:false, bundleContains:[],
-    addedBy:currentUser()?.displayName||'',
-    updatedBy:currentUser()?.displayName||'',
-    _mod:now, _created:now,
+    _created:    Date.now(),
+    _mod:        Date.now(),
     ...fields
   };
-  // Auto-set needTag if donor present
-  if(prize.donor&&prize.donor.trim()) prize.needTag=true;
   _prizes[id] = prize;
   await dbSet('prizes/'+id, prize);
   await dbSet('meta/nextId', id+1);
@@ -55,37 +60,40 @@ async function addPrize(fields){
   return prize;
 }
 
-async function updatePrize(id, fields){
-  if(!_prizes[id]) return;
-  const updated = {..._prizes[id], ...fields,
-    updatedBy:currentUser()?.displayName||'', _mod:Date.now()};
-  // Auto-set needTag if donor present/cleared
-  if('donor' in fields){
-    updated.needTag = !!(updated.donor&&updated.donor.trim());
-  }
-  _prizes[id] = updated;
-  await dbSet('prizes/'+id, updated);
-  return updated;
+async function updatePrize(id, fields) {
+  if (!_prizes[id]) return;
+  _prizes[id] = {..._prizes[id], ...fields, _mod: Date.now()};
+  await dbSet('prizes/'+id, _prizes[id]);
+  return _prizes[id];
 }
 
-async function deletePrize(id){
+async function deletePrize(id) {
   delete _prizes[id];
   await dbDelete('prizes/'+id);
 }
 
-function startSync(onChange){
-  _onChangeCb = onChange;
-  if(!window.FIREBASE_DB_URL) return;
-  _syncStop = true;
-  const poll = async()=>{
-    if(!_syncStop) return;
-    try{
-      const data = await dbGet('prizes');
-      _prizes = data||{};
-      if(_onChangeCb) _onChangeCb();
-    }catch(e){}
-    setTimeout(poll,15000);
-  };
-  poll();
+async function addItemType(name) {
+  if (!_meta.itemTypes) _meta.itemTypes = ['Book','Bookish item','Clothing','Jewelry','Misc'];
+  if (!_meta.itemTypes.includes(name)) {
+    _meta.itemTypes.push(name);
+    await dbSet('meta/itemTypes', _meta.itemTypes);
+  }
 }
-function stopSync(){_syncStop=false;}
+
+// ── Sync poll ────────────────────────────────────────────────────────────
+let _pollInterval = null;
+function startSync(onChange) {
+  if (_pollInterval) clearInterval(_pollInterval);
+  _pollInterval = setInterval(async () => {
+    const [prizes, authors] = await Promise.all([
+      dbGet('prizes'),
+      loadAuthorsFromHQ()
+    ]);
+    _prizes  = prizes || {};
+    _authors = authors;
+    onChange();
+  }, 20000); // poll every 20 seconds
+}
+function stopSync() {
+  if (_pollInterval) clearInterval(_pollInterval);
+}
