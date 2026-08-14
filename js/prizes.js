@@ -487,4 +487,40 @@ function confirmDeletePrize(id) {
       renderGoals();
     });
   }
+}function setDonorType(type, preFill) {
+  ['none','author','business'].forEach(function(t) {
+    var btn = document.getElementById('donor-btn-'+t);
+    if (btn) btn.classList.toggle('active', t===type);
+  });
+  var el = document.getElementById('donor-fields');
+  if (!el) return;
+  if (type === 'none') { el.innerHTML = ''; return; }
+  var isAuthor = type === 'author';
+  var authors = getAuthors();
+  var html = '';
+  if (isAuthor) {
+    html += '<div class="field"><label>Author</label>'+
+      '<select id="pm-donor" onchange="toggleOtherAuthor(this.value)">'+
+      '<option value="">— Select author —</option>'+
+      authors.map(function(a){ return '<option>'+escHtml(a)+'</option>'; }).join('')+
+      '<option value="__other__">Other (enter name)</option>'+
+      '</select></div>'+
+      '<div id="other-author-field" style="display:none" class="field"><label>Author name</label><input type="text" id="pm-other-author" placeholder="Full name"></div>';
+  } else {
+    html += '<div class="field"><label>Business name</label><input type="text" id="pm-donor" placeholder="Business name"></div>';
+  }
+  html += '<div class="field"><label>Donor website (for QR code)</label><input type="text" id="pm-website" placeholder="https://…"></div>'+
+    '<div class="field"><label>QR type</label><select id="pm-qrtype"><option value="website">Website</option><option value="instagram">Instagram</option></select></div>'+
+    '<div class="field"><label>Pronoun</label><select id="pm-pronoun"><option value="their">their</option><option value="her">her</option><option value="his">his</option></select></div>'+
+    '<div class="field"><label>Logo</label>'+
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+        '<label class="btn" style="cursor:pointer;font-size:12px"><i class="ti ti-upload"></i> Upload logo<input type="file" accept="image/*" style="display:none" onchange="handleLogoUpload(this)"></label>'+
+        '<span style="font-size:11px;color:var(--text3)">or</span>'+
+        '<input type="text" id="pm-logo" placeholder="Paste Google Drive link" style="flex:1;min-width:100px">'+
+      '</div>'+
+      '<div id="pm-logo-preview" style="margin-top:6px"></div>'+
+    '</div>';
+  el.innerHTML = html;
+  el.dataset.donorType = type;
 }
+
