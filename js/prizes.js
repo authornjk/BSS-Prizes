@@ -6,13 +6,18 @@ var _searchQ      = '';
 var _prizeDebounce = null;
 var _pendingPhotos = []; // photos staged during add/edit
 
+// ── Bundle state ──────────────────────────────────────────────────────────────
+var _bundleMode    = false;   // are we currently building a bundle?
+var _bundleAnchor  = null;    // id of the prize that started the bundle
+var _bundleSelected = new Set(); // ids selected for current bundle
+
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag'];
 
 function renderPrizes() {
   const el = document.getElementById('prizes-content');
   if (!el) return;
 
-  let list = getPrizes().filter(p => p && p.id !== undefined && !p.bundledInto);
+  let list = getPrizes().filter(p => p && p.id !== undefined && !p.isBundle);
 
   // Search
   if (_searchQ.trim()) {
@@ -33,9 +38,25 @@ function renderPrizes() {
     return ci !== 0 ? ci : (a.name||'').localeCompare(b.name||'');
   });
 
-  el.innerHTML = `
+  const allPrizes = getPrizes();
+  const bundles = allPrizes.filter(p => p.isBundle);
+  const bundleBar = _bundleMode ? `
+    <div style="background:var(--purple-bg);border:.5px solid var(--purple);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;color:var(--purple-text);margin-bottom:6px">
+        <i class="ti ti-packages"></i> Building bundle — ${_bundleSelected.size} items selected
+      </div>
+      <div style="font-size:12px;color:var(--purple-text);margin-bottom:8px">Tap prizes below to add them to this bundle.</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" onclick="finishBundle()" style="background:var(--purple);color:white;border-color:var(--purple)">
+          <i class="ti ti-check"></i> Done — Name bundle
+        </button>
+        <button class="btn" onclick="cancelBundle()">Cancel</button>
+      </div>
+    </div>` : '';
+
+  el.innerHTML = bundleBar + `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--text2)">${list.length} prizes</div>
+      <div style="font-size:13px;color:var(--text2)">${list.length} prizes · ${bundles.length} bundles</div>
       <button class="btn primary" onclick="openAddPrize()"><i class="ti ti-plus"></i> Add prize</button>
     </div>
 
@@ -72,8 +93,41 @@ function prizeCard(p) {
                    p.tagPrinted   ? '2. Printed' :
                    p.tagMade      ? '1. Made' : '';
 
-  return `<div class="prize-card" onclick="openEditPrize(${p.id})">
+  const isBundled  = !!p.bundledInto;
+  const isSelected = _bundleSelected.has(p.id);
+  const isAnchor   = _bundleAnchor === p.id;
+
+  // In bundle mode: clicking selects/deselects (unless it's in another bundle)
+  const clickFn = _bundleMode
+    ? (isBundled && !isAnchor ? '' : `toggleBundleSelect(${p.id})`)
+    : `openEditPrize(${p.id})`;
+
+  const cardStyle = isBundled
+    ? 'opacity:0.5;background:var(--bg2)'
+    : isSelected || isAnchor
+      ? 'border-color:var(--purple);background:var(--purple-bg)'
+      : 'background:var(--bg)';
+
+  const bundleLabel = isBundled
+    ? `<div style="text-align:right;font-size:10px;color:var(--text3);margin-top:4px;font-style:italic">Bundled with ${escHtml(p.bundledInto)}</div>`
+    : '';
+
+  const bundleCheckbox = _bundleMode && !isBundled
+    ? `<div style="width:22px;height:22px;border-radius:50%;border:2px solid ${isSelected||isAnchor?'var(--purple)':'var(--border2)'};background:${isSelected||isAnchor?'var(--purple)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        ${isSelected||isAnchor?'<i class="ti ti-check" style="font-size:12px;color:white"></i>':''}
+       </div>`
+    : '';
+
+  const bundleBtn = !_bundleMode && !isBundled
+    ? `<button onclick="event.stopPropagation();startBundle(${p.id})"
+        style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;font-family:inherit">
+        <i class="ti ti-packages" style="font-size:10px"></i> Bundle
+       </button>`
+    : '';
+
+  return `<div class="prize-card" style="${cardStyle}" onclick="${clickFn}">
     <div style="display:flex;gap:10px;align-items:flex-start">
+      ${bundleCheckbox}
       ${thumb
         ? `<img src="${thumb}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;cursor:pointer"
              onclick="event.stopPropagation();viewPhoto(${p.id},0)">`
@@ -97,10 +151,12 @@ function prizeCard(p) {
         </div>
         ${p.notes?`<div style="font-size:11px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.notes)}</div>`:''}
       </div>
-      <div style="flex-shrink:0">
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        ${bundleBtn}
         <i class="ti ti-chevron-right" style="font-size:14px;color:var(--text3)"></i>
       </div>
     </div>
+    ${bundleLabel}
     ${p.photos && p.photos.length > 1 ? `
       <div style="display:flex;gap:4px;margin-top:8px;padding-left:70px;overflow-x:auto">
         ${p.photos.slice(1,5).map((ph,i) =>
@@ -110,6 +166,282 @@ function prizeCard(p) {
         ${p.photos.length > 5 ? `<div style="width:44px;height:44px;border-radius:4px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2)">+${p.photos.length-5}</div>` : ''}
       </div>` : ''}
   </div>`;
+}
+
+// ── Bundle card ───────────────────────────────────────────────────────────────
+function bundleCard(b) {
+  const items = getPrizes().filter(p => p.bundledInto === b.name);
+  const thumbs = items.flatMap(p => p.photos||[]).slice(0,4);
+  const isExpanded = b._expanded;
+
+  let photoGrid = '';
+  if (thumbs.length === 0) {
+    photoGrid = '<div style="width:70px;height:70px;border-radius:8px;background:var(--bg2);border:.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-packages" style="font-size:24px;color:var(--text3)"></i></div>';
+  } else if (thumbs.length === 1) {
+    photoGrid = '<img src="'+thumbs[0].thumb+'" style="width:70px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0">';
+  } else {
+    const sz = thumbs.length >= 4 ? 33 : thumbs.length === 3 ? 33 : 33;
+    photoGrid = '<div style="width:70px;height:70px;display:grid;grid-template-columns:1fr 1fr;gap:2px;border-radius:8px;overflow:hidden;flex-shrink:0">' +
+      thumbs.slice(0,4).map(ph => '<img src="'+ph.thumb+'" style="width:100%;height:100%;object-fit:cover">').join('') +
+    '</div>';
+  }
+
+  let itemsHtml = '';
+  if (isExpanded) {
+    itemsHtml = '<div style="margin-top:10px;border-top:.5px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px">' +
+      items.map(p =>
+        '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--radius-sm)">' +
+          (p.photos&&p.photos[0] ? '<img src="'+p.photos[0].thumb+'" style="width:36px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0">' : '<div style="width:36px;height:36px;border-radius:4px;background:var(--bg3);flex-shrink:0"></div>') +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:12px;font-weight:500">'+escHtml(p.name||'')+'</div>' +
+            '<div style="font-size:10px;color:var(--text3)">'+escHtml(p.cat||'')+' · '+escHtml(p.itemType||'')+'</div>' +
+          '</div>' +
+          '<button onclick="event.stopPropagation();removeFromBundle('+p.id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text3);cursor:pointer;font-family:inherit">Remove</button>' +
+        '</div>'
+      ).join('') +
+    '</div>';
+  }
+
+  return '<div class="prize-card" style="border-color:var(--purple);background:var(--bg)">' +
+    '<div style="display:flex;gap:10px;align-items:flex-start" onclick="toggleBundleExpand('+b.id+')">' +
+      photoGrid +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">' +
+          '<span class="cat-pill cat-'+(b.cat||'').toLowerCase().replace(' ','-')+'">'+escHtml(b.cat||'Bundle')+'</span>' +
+          '<span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:8px;font-weight:500"><i class="ti ti-packages" style="font-size:9px"></i> Bundle</span>' +
+        '</div>' +
+        '<div style="font-size:14px;font-weight:700">'+escHtml(b.name||'Bundle')+'</div>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:2px">'+items.length+' items</div>' +
+        (b.value ? '<div style="font-size:11px;color:var(--text2)">Est '+fmt$(b.value)+'</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">' +
+        '<button onclick="event.stopPropagation();openEditBundle('+b.id+')" style="font-size:11px;padding:3px 8px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text2);cursor:pointer;font-family:inherit"><i class="ti ti-pencil" style="font-size:11px"></i> Edit</button>' +
+        '<i class="ti ti-chevron-'+(isExpanded?'up':'down')+'" style="font-size:14px;color:var(--text3)"></i>' +
+      '</div>' +
+    '</div>' +
+    itemsHtml +
+  '</div>';
+}
+
+async function toggleBundleExpand(id) {
+  const b = getPrize(id);
+  if (b) {
+    await updatePrize(id, {_expanded: !b._expanded});
+    renderPrizes();
+  }
+}
+
+async function removeFromBundle(prizeId) {
+  const p = getPrize(prizeId);
+  if (!p) return;
+  const choice = confirm('Remove this prize from the bundle?\n\nOK = Put back as individual prize\nCancel = Keep in bundle');
+  if (choice) {
+    await updatePrize(prizeId, {bundledInto: null});
+    showToast(p.name+' removed from bundle');
+    renderPrizes();
+  }
+}
+
+// ── Bundle building ───────────────────────────────────────────────────────────
+function startBundle(anchorId) {
+  _bundleMode = true;
+  _bundleAnchor = anchorId;
+  _bundleSelected = new Set([anchorId]);
+  renderPrizes();
+  // Scroll to top so user sees the bundle bar
+  window.scrollTo(0,0);
+}
+
+function toggleBundleSelect(id) {
+  if (!_bundleMode) return;
+  if (id === _bundleAnchor) return; // anchor always selected
+  if (_bundleSelected.has(id)) {
+    _bundleSelected.delete(id);
+  } else {
+    _bundleSelected.add(id);
+  }
+  renderPrizes();
+}
+
+function cancelBundle() {
+  _bundleMode = false;
+  _bundleAnchor = null;
+  _bundleSelected = new Set();
+  renderPrizes();
+}
+
+function finishBundle() {
+  if (_bundleSelected.size < 2) {
+    showToast('Select at least 2 prizes to bundle', 'error');
+    return;
+  }
+  // Show naming modal
+  const mc = document.getElementById('modal-container');
+  mc.innerHTML = '';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-bg';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.className = 'modal';
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Name this bundle';
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:12px;color:var(--text2);margin-bottom:12px';
+  sub.textContent = _bundleSelected.size+' prizes selected';
+
+  const nameField = document.createElement('div');
+  nameField.className = 'field';
+  nameField.innerHTML = '<label>Bundle name</label><input type="text" id="bundle-name" placeholder="e.g. Dream book set" style="width:100%">';
+
+  const catField = document.createElement('div');
+  catField.className = 'field';
+  catField.innerHTML = '<label>Category</label><select id="bundle-cat" style="width:100%">' +
+    CATEGORIES.map(c => '<option>'+c+'</option>').join('') + '</select>';
+
+  const actions = document.createElement('div');
+  actions.className = 'm-actions';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = () => { overlay.remove(); cancelBundle(); };
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn primary';
+  saveBtn.innerHTML = '<i class="ti ti-packages"></i> Create bundle';
+  saveBtn.onclick = createBundle;
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+
+  box.appendChild(h3);
+  box.appendChild(sub);
+  box.appendChild(nameField);
+  box.appendChild(catField);
+  box.appendChild(actions);
+  overlay.appendChild(box);
+  mc.appendChild(overlay);
+  setTimeout(() => document.getElementById('bundle-name')?.focus(), 50);
+}
+
+async function createBundle() {
+  const name = document.getElementById('bundle-name')?.value?.trim();
+  if (!name) { showToast('Please enter a bundle name', 'error'); return; }
+  const cat = document.getElementById('bundle-cat')?.value || 'BINGO';
+
+  // Calculate total value from selected prizes
+  const selectedPrizes = [..._bundleSelected].map(id => getPrize(id)).filter(Boolean);
+  const totalValue = selectedPrizes.reduce((s,p) => s+(+p.value||0), 0);
+  const totalPaid  = selectedPrizes.reduce((s,p) => s+(+p.paid||0), 0);
+
+  // Create the bundle as a prize
+  const bundle = await addPrize({
+    name,
+    cat,
+    isBundle: true,
+    bundleItems: [..._bundleSelected],
+    value: totalValue,
+    paid:  totalPaid,
+    itemType: 'Bundle',
+    photos: selectedPrizes.flatMap(p => p.photos||[]).slice(0,4),
+    qty: 1,
+    notes: 'Bundle of '+selectedPrizes.length+' items: '+selectedPrizes.map(p=>p.name).join(', '),
+    _expanded: false,
+  });
+
+  // Mark all selected prizes as bundled
+  for (const id of _bundleSelected) {
+    await updatePrize(id, {bundledInto: name});
+  }
+
+  // Close modal and exit bundle mode
+  document.getElementById('modal-container').innerHTML = '';
+  _bundleMode = false;
+  _bundleAnchor = null;
+  _bundleSelected = new Set();
+  showToast('Bundle "'+name+'" created!');
+  renderPrizes();
+  renderGoals();
+}
+
+function openEditBundle(id) {
+  const b = getPrize(id);
+  if (!b || !b.isBundle) return;
+  const items = getPrizes().filter(p => p.bundledInto === b.name);
+  const allPrizes = getPrizes().filter(p => !p.isBundle && !p.bundledInto);
+
+  showModal(
+    '<h3>Edit bundle: '+escHtml(b.name)+'</h3>' +
+    '<div class="field"><label>Bundle name</label><input type="text" id="eb-name" value="'+escHtml(b.name)+'" style="width:100%"></div>' +
+    '<div class="field"><label>Category</label><select id="eb-cat" style="width:100%">' +
+      CATEGORIES.map(c => '<option'+(b.cat===c?' selected':'')+'>'+c+'</option>').join('') +
+    '</select></div>' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">Items in bundle ('+items.length+')</div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">' +
+      items.map(p =>
+        '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--radius-sm)">' +
+          '<div style="flex:1;font-size:12px">'+escHtml(p.name||'')+'</div>' +
+          '<button onclick="removeFromBundle('+p.id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--red);cursor:pointer;font-family:inherit">Remove</button>' +
+        '</div>'
+      ).join('') +
+    '</div>' +
+    (allPrizes.length > 0 ?
+      '<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">Add prizes to bundle</div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">' +
+        allPrizes.map(p =>
+          '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--radius-sm)">' +
+            '<div style="flex:1;font-size:12px">'+escHtml(p.name||'')+'</div>' +
+            '<button onclick="addToExistingBundle('+p.id+','+id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--purple-text);cursor:pointer;font-family:inherit">+ Add</button>' +
+          '</div>'
+        ).join('') +
+      '</div>'
+    : '') +
+    '<div class="m-actions">' +
+      '<button class="btn danger" onclick="confirmDeleteBundle('+id+')"><i class="ti ti-trash"></i> Delete bundle</button>' +
+      '<button class="btn" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn primary" onclick="saveEditBundle('+id+')"><i class="ti ti-check"></i> Save</button>' +
+    '</div>'
+  );
+}
+
+async function saveEditBundle(id) {
+  const name = document.getElementById('eb-name')?.value?.trim();
+  const cat  = document.getElementById('eb-cat')?.value;
+  if (!name) { showToast('Please enter a name', 'error'); return; }
+  const oldName = getPrize(id)?.name;
+  await updatePrize(id, {name, cat});
+  // Update bundledInto on all items if name changed
+  if (oldName && oldName !== name) {
+    const items = getPrizes().filter(p => p.bundledInto === oldName);
+    for (const p of items) await updatePrize(p.id, {bundledInto: name});
+  }
+  closeModal();
+  showToast('Bundle saved');
+  renderPrizes();
+}
+
+async function addToExistingBundle(prizeId, bundleId) {
+  const bundle = getPrize(bundleId);
+  if (!bundle) return;
+  await updatePrize(prizeId, {bundledInto: bundle.name});
+  // Refresh modal
+  closeModal();
+  openEditBundle(bundleId);
+  showToast('Added to bundle');
+  renderPrizes();
+}
+
+async function confirmDeleteBundle(id) {
+  const b = getPrize(id);
+  if (!b) return;
+  const items = getPrizes().filter(p => p.bundledInto === b.name);
+  if (confirm('Delete bundle "'+b.name+'"?\n\nThe '+items.length+' items inside will be returned to individual prizes.')) {
+    // Un-bundle all items
+    for (const p of items) await updatePrize(p.id, {bundledInto: null});
+    await deletePrize(id);
+    closeModal();
+    showToast('Bundle deleted, items restored');
+    renderPrizes();
+    renderGoals();
+  }
 }
 
 async function viewPhoto(prizeId, idx) {
