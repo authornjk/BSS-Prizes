@@ -1,5 +1,5 @@
 // v20260814d — network first
-const CACHE = 'soiree-prizes-20260814q
+const CACHE = 'soiree-prizes-20260814r
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).then(() => self.clients.claim())
