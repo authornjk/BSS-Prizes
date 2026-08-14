@@ -1,5 +1,5 @@
 // storage.js — Firebase connection + helpers
-window.FIREBASE_DB_URL = localStorage.getItem('soiree_firebase_url') || '';
+window.FIREBASE_DB_URL = localStorage.getItem('soiree_firebase_url') || 'https://soiree-prizes-default-rtdb.firebaseio.com';
 window.GDRIVE_TAG_FOLDER = '1F4JcjLJhGbH14fUKv-dzrK1v85R8Qzqf';
 
 async function dbGet(path) {
