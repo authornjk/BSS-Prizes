@@ -29,7 +29,7 @@ function renderShell() {
         <div class="goals-row" id="goals-bar"></div>
       </div>
 
-      <div id="tab-prizes"   style="padding:0 12px"></div>
+      <div id="tab-prizes"   style="padding:0 12px"><div id="prizes-content"></div></div>
       <div id="tab-tags"     style="display:none;padding:0 12px"></div>
       <div id="tab-settings" style="display:none;padding:0 12px"></div>
     </div>
