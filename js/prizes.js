@@ -12,7 +12,7 @@ function renderPrizes() {
   const el = document.getElementById('prizes-content');
   if (!el) return;
 
-  let list = getPrizes().filter(p => !p.bundledInto);
+  let list = getPrizes().filter(p => p && p.id !== undefined && !p.bundledInto);
 
   // Search
   if (_searchQ.trim()) {
