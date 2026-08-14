@@ -1,5 +1,5 @@
 // storage.js — Firebase + helpers
-window.FIREBASE_DB_URL = localStorage.getItem('soiree_firebase_url') || 'https://soiree-prizes-default-rtdb.firebaseio.com';
+window.FIREBASE_DB_URL = localStorage.getItem('soiree_firebase_url') || 'https://soiree-prizes-2027-default-rtdb.firebaseio.com';
 
 async function dbGet(path) {
   if (!window.FIREBASE_DB_URL) return null;
