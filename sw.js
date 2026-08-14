@@ -1,5 +1,5 @@
-// v20260813.8 — network-first
-const CACHE = 'soiree-prizes-v20260813.8';
+// v20260814b — network-first
+const CACHE = 'soiree-prizes-20260814b-v20260814b';
 
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
