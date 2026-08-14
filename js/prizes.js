@@ -112,12 +112,19 @@ function prizeCard(p) {
   </div>`;
 }
 
-function viewPhoto(prizeId, idx) {
+async function viewPhoto(prizeId, idx) {
   const p = getPrize(prizeId);
   if (!p || !p.photos || !p.photos[idx]) return;
+  // If we only have a thumb, load full photo from Firebase first
+  if (!p.photos[idx].full) {
+    await loadFullPhotos(prizeId);
+  }
+  const photo = getPrize(prizeId)?.photos?.[idx];
+  if (!photo) return;
+  const src = photo.full || photo.thumb;
   showModal(`
     <div style="text-align:center">
-      <img src="${p.photos[idx].full}" style="max-width:100%;max-height:70vh;border-radius:8px;object-fit:contain">
+      <img src="${src}" style="max-width:100%;max-height:70vh;border-radius:8px;object-fit:contain">
       <div style="margin-top:8px;font-size:12px;color:var(--text2)">${escHtml(p.name||'')} — Photo ${idx+1} of ${p.photos.length}</div>
       ${p.photos.length > 1 ? `
         <div style="display:flex;justify-content:center;gap:6px;margin-top:8px">
