@@ -90,6 +90,9 @@ function showModal(html) {
 function closeModal() {
   const mc = document.getElementById('modal-container');
   if (mc) mc.innerHTML = '';
+  // Always reset prize edit state when modal closes
+  if (typeof _editMode !== 'undefined')       _editMode = false;
+  if (typeof _currentPrizeId !== 'undefined') _currentPrizeId = 0;
 }
 function closeModalOutside(e) { if(e.target.id==='modal-bg') closeModal(); }
 
