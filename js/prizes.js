@@ -498,6 +498,85 @@ function removePendingPhoto(i) {
   renderPhotoPreview();
 }
 
+
+async function showPrizeModal(p, authors, itemTypes) {
+  var isEdit = !!p;
+  var donorType = (p && p.donorType) || 'none';
+
+  // Build the modal using DOM to avoid template literal issues
+  var mc = document.getElementById('modal-container');
+  mc.innerHTML = '';
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'modal-bg';
+  overlay.onclick = function(e){ if(e.target===overlay) closeModal(); };
+  var box = document.createElement('div'); box.className = 'modal';
+  box.style.maxHeight = '90vh'; box.style.overflowY = 'auto';
+
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'modal-close'; closeBtn.innerHTML = '<i class="ti ti-x"></i>'; closeBtn.onclick = closeModal;
+
+  var h3 = document.createElement('h3'); h3.textContent = isEdit ? 'Edit prize' : 'Add prize';
+
+  // Build form HTML as string (no dynamic template expressions at top level)
+  var catOptions = '<option value="">— Select category —</option>'+
+    CATEGORIES.map(function(c){ return '<option'+(p&&p.cat===c?' selected':'')+'>'+c+'</option>'; }).join('');
+  var typeButtons = itemTypes.map(function(t){
+    return '<button class="cat-btn'+(p&&p.itemType===t?' active':'')+'" onclick="selectItemType(\''+escHtml(t)+'\')" id="itype-'+t.replace(/ /g,'_')+'">'+escHtml(t)+'</button>';
+  }).join('')+'<button class="cat-btn" onclick="addNewItemType()"><i class="ti ti-plus"></i> New</button>';
+
+  box.innerHTML =
+    '<button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>'+
+    '<h3>'+(isEdit?'Edit prize':'Add prize')+'</h3>'+
+    '<div class="field"><label>Prize name</label><input type="text" id="pm-name" value="'+escHtml((p&&p.name)||'')+'" placeholder="What is the prize?"></div>'+
+    '<div class="field"><label>Category</label><select id="pm-cat">'+catOptions+'</select></div>'+
+    '<div class="field"><label>Item type</label>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+typeButtons+'</div>'+
+      '<input type="hidden" id="pm-item-type" value="'+escHtml((p&&p.itemType)||'Misc')+'">'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+
+      '<div class="field"><label>Est value ($)</label><input type="text" inputmode="decimal" id="pm-value" value="'+((p&&p.value)||'')+'" placeholder="0.00"></div>'+
+      '<div class="field"><label>Amount paid ($)</label><input type="text" inputmode="decimal" id="pm-paid" value="'+((p&&p.paid)||'')+'" placeholder="0.00"></div>'+
+      '<div class="field"><label>Qty</label><input type="number" id="pm-qty" value="'+((p&&p.qty)||'')+'" placeholder="1" min="1"></div>'+
+      '<div class="field"><label>Location</label><input type="text" id="pm-loc" value="'+escHtml((p&&p.loc)||'')+'" placeholder="Where is it?"></div>'+
+    '</div>'+
+    '<div class="field"><label>Notes</label><textarea id="pm-notes" rows="2" placeholder="Any notes about this prize\u2026">'+escHtml((p&&p.notes)||'')+'</textarea></div>'+
+    '<div class="field"><label>Donor</label>'+
+      '<div style="display:flex;gap:6px;margin-bottom:8px">'+
+        '<button class="cat-btn'+(donorType==='none'?' active':'')+'" onclick="setDonorType(\'none\')" id="donor-btn-none">None</button>'+
+        '<button class="cat-btn'+(donorType==='author'?' active':'')+'" onclick="setDonorType(\'author\')" id="donor-btn-author">Author</button>'+
+        '<button class="cat-btn'+(donorType==='business'?' active':'')+'" onclick="setDonorType(\'business\')" id="donor-btn-business">Business</button>'+
+      '</div>'+
+      '<div id="donor-fields"></div>'+
+    '</div>'+
+    '<div class="field"><label>Photos</label>'+
+      '<div id="photo-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>'+
+      '<div style="display:flex;gap:6px">'+
+        '<label class="btn" style="cursor:pointer"><i class="ti ti-camera"></i> Take photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoFile(this)"></label>'+
+        '<label class="btn" style="cursor:pointer"><i class="ti ti-photo"></i> Choose<input type="file" accept="image/*" multiple style="display:none" onchange="handlePhotoFile(this)"></label>'+
+      '</div>'+
+    '</div>'+
+    (isEdit ? getTagStatusHtml(p) : '')+
+    buildPrizeActions(p, isEdit);
+
+  overlay.appendChild(box);
+  mc.appendChild(overlay);
+
+  // Initialize donor and photos
+  setDonorType(donorType, p);
+  renderPhotoPreview();
+
+  if (p && p.donor) {
+    setTimeout(function(){
+      var el = document.getElementById('pm-donor');
+      if (el) { el.value = p.donor; toggleOtherAuthor(p.donor); }
+      var ws = document.getElementById('pm-website');  if(ws && p.donorWebsite) ws.value = p.donorWebsite;
+      var qt = document.getElementById('pm-qrtype');   if(qt && p.donorQRType)  qt.value = p.donorQRType;
+      var pr = document.getElementById('pm-pronoun');  if(pr && p.donorPronoun) pr.value = p.donorPronoun;
+      var lg = document.getElementById('pm-logo');     if(lg && p.donorLogo)    lg.value = p.donorLogo;
+    }, 50);
+  }
+}
+
 async function doAddPrize() {
   const name = document.getElementById('pm-name')?.value?.trim();
   if (!name) { showToast('Please enter a prize name','error'); return; }
