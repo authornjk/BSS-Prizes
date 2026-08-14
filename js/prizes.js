@@ -17,29 +17,21 @@ function renderPrizes() {
   const el = document.getElementById('prizes-content');
   if (!el) return;
 
-  let list = getPrizes().filter(p => p && p.id !== undefined && !p.isBundle);
-
-  // Search
+  var searchFilter = function(p) { return true; };
   if (_searchQ.trim()) {
-    const q = _searchQ.toLowerCase();
-    list = list.filter(p =>
-      (p.name||'').toLowerCase().includes(q) ||
-      (p.donor||'').toLowerCase().includes(q) ||
-      (p.cat||'').toLowerCase().includes(q) ||
-      (p.notes||'').toLowerCase().includes(q)
-    );
+    var q = _searchQ.toLowerCase();
+    searchFilter = function(p) {
+      return (p.name||'').toLowerCase().includes(q) ||
+             (p.donor||'').toLowerCase().includes(q) ||
+             (p.cat||'').toLowerCase().includes(q) ||
+             (p.notes||'').toLowerCase().includes(q);
+    };
   }
-  if (_filterCat)   list = list.filter(p => p.cat === _filterCat);
-  if (_filterDonor) list = list.filter(p => p.donorType === _filterDonor);
 
-  // Sort by category then name
-  list.sort((a,b) => {
-    const ci = CATEGORIES.indexOf(a.cat) - CATEGORIES.indexOf(b.cat);
-    return ci !== 0 ? ci : (a.name||'').localeCompare(b.name||'');
-  });
-
-  const allPrizes = getPrizes();
+  const allPrizes = getPrizes().filter(p => p && p.id !== undefined);
   const bundles = allPrizes.filter(p => p.isBundle);
+  const individualPrizes = allPrizes.filter(p => !p.isBundle && !p.bundledInto && (!_filterCat || p.cat===_filterCat));
+  const bundledPrizes = allPrizes.filter(p => !p.isBundle && !!p.bundledInto && (!_filterCat || p.cat===_filterCat));
   const bundleBar = _bundleMode ? `
     <div style="background:var(--purple-bg);border:.5px solid var(--purple);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px">
       <div style="font-size:13px;font-weight:600;color:var(--purple-text);margin-bottom:6px">
@@ -56,7 +48,7 @@ function renderPrizes() {
 
   el.innerHTML = bundleBar + `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--text2)">${list.length} prizes · ${bundles.length} bundles</div>
+      <div style="font-size:13px;color:var(--text2)">${individualPrizes.length} prizes · ${bundledPrizes.length} bundled · ${bundles.length} bundles</div>
       <button class="btn primary" onclick="openAddPrize()"><i class="ti ti-plus"></i> Add prize</button>
     </div>
 
@@ -72,11 +64,25 @@ function renderPrizes() {
       ${CATEGORIES.map(c => `<button class="cat-btn${_filterCat===c?' active':''}" onclick="_filterCat='${c}';renderPrizes()">${c}</button>`).join('')}
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${list.map(p => prizeCard(p)).join('')}
-      ${list.length===0?'<div style="text-align:center;padding:3rem;color:var(--text3)">No prizes found.</div>':''}
+    <div style="display:flex;flex-direction:column;gap:8px" id="prize-list-inner">
     </div>
     <div style="height:300px"></div>`;
+  // Build list separately to avoid template literal nesting issues
+  buildPrizeList(allPrizes, bundles, searchFilter);
+}
+
+function buildPrizeList(allPrizes, bundles, searchFilter) {
+  var el = document.getElementById('prize-list-inner');
+  if (!el) return;
+  var filterCat = _filterCat;
+  var bundsFiltered = bundles.filter(function(b){ return !filterCat || b.cat===filterCat; });
+  var individual = allPrizes.filter(function(p){ return !p.isBundle && !p.bundledInto && (!filterCat || p.cat===filterCat) && searchFilter(p); });
+  var bundled    = allPrizes.filter(function(p){ return !p.isBundle && !!p.bundledInto && (!filterCat || p.cat===filterCat) && searchFilter(p); });
+  var html = bundsFiltered.map(function(b){ return bundleCard(b); }).join('') +
+             individual.map(function(p){ return prizeCard(p); }).join('') +
+             bundled.map(function(p){ return prizeCard(p); }).join('');
+  if (!html) html = '<div style="text-align:center;padding:3rem;color:var(--text3)">No prizes found.</div>';
+  el.innerHTML = html;
 }
 
 function debouncePrizeSearch(val) {
