@@ -11,17 +11,29 @@ async function loadAll() {
       dbGet('meta'),
       loadAuthorsFromHQ()
     ]);
-    // Only update if Firebase actually returned data
     if (prizes && typeof prizes === 'object' && Object.keys(prizes).length > 0) {
       _prizes = prizes;
     }
-    if (meta) _meta = {..._meta, ...meta};
+    if (meta && typeof meta === 'object') _meta = {..._meta, ...meta};
     if (authors && authors.length > 0) _authors = authors;
     updateSyncStatus('connected');
   } catch(e) {
     updateSyncStatus('error');
     console.error('loadAll failed:', e);
   }
+}
+
+// Load full photos for a single prize (called when viewing)
+async function loadFullPhotos(id) {
+  try {
+    const fulls = await dbGet('photos/'+id);
+    if (fulls && _prizes[id]) {
+      _prizes[id].photos = fulls.map((full, i) => ({
+        full,
+        thumb: (_prizes[id].photos[i]?.thumb) || full
+      }));
+    }
+  } catch(e) {}
 }
 
 // ── Getters ────────────────────────────────────────────────────────────────
@@ -35,6 +47,9 @@ function getItemTypes() {
 // ── Prize CRUD ────────────────────────────────────────────────────────────
 async function addPrize(fields) {
   const id = _meta.nextId || 1;
+  // Separate full photos from prize record — store only thumbs in prize
+  const photos = fields.photos || [];
+  const thumbsOnly = photos.map(p => ({thumb: p.thumb}));
   const prize = {
     id,
     name:        '',
@@ -51,7 +66,7 @@ async function addPrize(fields) {
     donorQRType: 'website',
     donorPronoun:'their',
     donorLogo:   '',
-    photos:      [],   // array of {full: base64, thumb: base64}
+    photos:      thumbsOnly,  // thumbs only in main record
     needTag:     false,
     tagMade:     false,
     tagPrinted:  false,
@@ -60,27 +75,40 @@ async function addPrize(fields) {
     tagGenerated:false,
     _created:    Date.now(),
     _mod:        Date.now(),
-    ...fields
+    ...fields,
+    photos:      thumbsOnly,  // always override with thumbs only
   };
-  _prizes[id] = prize;
+  _prizes[id] = {...prize, photos}; // keep full photos in local memory
   _meta.nextId = id+1;
   try {
+    // Save prize (thumbs only) to Firebase
     await dbSet('prizes/'+id, prize);
+    // Save full photos separately
+    if (photos.length > 0) {
+      await dbSet('photos/'+id, photos.map(p => p.full));
+    }
     await dbSet('meta/nextId', id+1);
     updateSyncStatus('connected');
-    showToast('Prize saved to Firebase ✓');
+    showToast('Prize saved ✓');
   } catch(e) {
     updateSyncStatus('error');
-    showToast('Firebase error — prize stored locally only. Check Settings.', 'error');
+    showToast('Firebase error — check Settings.', 'error');
+    console.error('addPrize error:', e);
   }
-  return prize;
+  return _prizes[id];
 }
 
 async function updatePrize(id, fields) {
   if (!_prizes[id]) return;
-  _prizes[id] = {..._prizes[id], ...fields, _mod: Date.now()};
+  const photos = fields.photos || _prizes[id].photos || [];
+  const thumbsOnly = photos.map(p => ({thumb: p.thumb || p}));
+  _prizes[id] = {..._prizes[id], ...fields, photos, _mod: Date.now()};
+  const toSave  = {..._prizes[id], photos: thumbsOnly};
   try {
-    await dbSet('prizes/'+id, _prizes[id]);
+    await dbSet('prizes/'+id, toSave);
+    if (photos.some(p => p.full)) {
+      await dbSet('photos/'+id, photos.map(p => p.full || p));
+    }
     updateSyncStatus('connected');
   } catch(e) {
     updateSyncStatus('error');
