@@ -170,16 +170,18 @@ function buildPrizeActions(p, isEdit) {
 function getTagStatusHtml(p) {
   if (!p) return '';
   const checks = [
-    {key:'tagMade',     label:'1. Made'},
-    {key:'tagPrinted',  label:'2. Printed'},
-    {key:'tagAttached', label:'3. Attached'},
-    {key:'onTote',      label:'4. On tote'},
+    {key:'tagMade',     label:'Tag made'},
+    {key:'tagPrinted',  label:'Tag printed'},
+    {key:'tagAttached', label:'Tag attached'},
+    {key:'onTote',      label:'On tote paper'},
   ];
-  return '<div class="field"><label>Donation tag status</label><div style="display:flex;flex-wrap:wrap;gap:6px">' +
-    checks.map(c =>
-      '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
-      '<input type="checkbox" id="pm-'+c.key+'" '+(p[c.key]?'checked':'')+' style="accent-color:var(--purple)">'+
-      c.label+'</label>'
+  return '<div class="field"><label>Donation tag status</label>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">' +
+    checks.map((c,i) =>
+      '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--radius-sm);border:.5px solid var(--border);cursor:pointer;font-size:13px">' +
+      '<input type="checkbox" id="pm-'+c.key+'" '+(p[c.key]?'checked':'')+' style="accent-color:var(--purple);width:16px;height:16px;flex-shrink:0">'+
+      '<span><span style="font-size:10px;color:var(--text3);display:block">Step '+(i+1)+'</span>'+c.label+'</span>'+
+      '</label>'
     ).join('') +
   '</div></div>';
 }
