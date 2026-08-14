@@ -167,7 +167,10 @@ function prizeCard(p) {
 // ── Bundle card ───────────────────────────────────────────────────────────────
 function bundleCard(b) {
   var bName = b.name || String(b.id);
-  var items = getPrizes().filter(function(p){ return p.bundledInto===bName && !p.isBundle; });
+  var bItems = b.bundleItems || [];
+  var items = getPrizes().filter(function(p){
+    return !p.isBundle && (p.bundledInto===bName || bItems.indexOf(p.id)>-1 || bItems.indexOf(String(p.id))>-1);
+  });
   var isExpanded = !!b._expanded;
 
   // Photo collage from items
@@ -300,7 +303,10 @@ async function createBundle() {
     paid:sel.reduce(function(s,p){return s+(+p.paid||0);},0),
     itemType:'Bundle',photos:allThumbs,qty:1,_expanded:false,
     notes:'Bundle: '+sel.map(function(p){return p.name;}).join(', ')});
-  for (var id of _bundleSelected) { var p=getPrize(id); if(p&&!p.isBundle) await updatePrize(id,{bundledInto:name}); }
+  for (var id of _bundleSelected) {
+    var p=getPrize(id);
+    if(p&&!p.isBundle) await updatePrize(id,{bundledInto:name, bundledIntoId:String(id)});
+  }
   document.getElementById('modal-container').innerHTML='';
   _bundleMode=false; _bundleAnchor=null; _bundleSelected=new Set();
   showToast('Bundle "'+name+'" created!'); renderPrizes(); renderGoals();
@@ -353,7 +359,7 @@ function openEditBundle(id) {
     '</div>':'')+
     '<div class="m-actions">'+
       '<button class="btn danger" onclick="confirmDeleteBundle('+id+')"><i class="ti ti-trash"></i> Delete bundle</button>'+
-      '<button class="btn" onclick="closeModal()">Cancel</button>'+
+      '<button class="btn" onclick="_editMode=false;_currentPrizeId=0;closeModal()">Cancel</button>'+
       '<button class="btn primary" onclick="saveEditBundle('+id+')"><i class="ti ti-check"></i> Save</button>'+
     '</div>'
   );
@@ -400,7 +406,7 @@ async function openAddPrize() {
 
 async function openEditPrize(id) {
   var p = getPrize(id);
-  if (!p) return;
+  if (!p) { showToast('Prize not found', 'error'); return; }
   _pendingPhotos = [...(p.photos||[])]; _editMode = true; _currentPrizeId = id;
   await showPrizeModal(p, getAuthors(), getItemTypes());
 }
@@ -607,7 +613,7 @@ async function doAddPrize(){
     loc:document.getElementById('pm-loc')?.value?.trim()||'',
     notes:document.getElementById('pm-notes')?.value?.trim()||'',
     photos:[..._pendingPhotos],...donor});
-  _pendingPhotos=[];
+  _pendingPhotos=[]; _editMode=false; _currentPrizeId=0;
   closeModal(); renderPrizes(); renderGoals();
 }
 
@@ -630,7 +636,7 @@ async function doEditPrize(id){
     loc:document.getElementById('pm-loc')?.value?.trim()||'',
     notes:document.getElementById('pm-notes')?.value?.trim()||'',
     photos:[..._pendingPhotos],...donor,...tagFields});
-  _pendingPhotos=[];
+  _pendingPhotos=[]; _editMode=false; _currentPrizeId=0;
   closeModal(); showToast('Prize saved!'); renderPrizes(); renderGoals();
 }
 
