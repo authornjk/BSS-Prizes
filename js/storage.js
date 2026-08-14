@@ -9,12 +9,16 @@ async function dbGet(path) {
   } catch(e) { return null; }
 }
 async function dbSet(path, data) {
-  if (!window.FIREBASE_DB_URL) return;
-  try {
-    await fetch(`${window.FIREBASE_DB_URL}/${path}.json`, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
-    });
-  } catch(e) {}
+  if (!window.FIREBASE_DB_URL) {
+    throw new Error('No Firebase URL configured');
+  }
+  const res = await fetch(`${window.FIREBASE_DB_URL}/${path}.json`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error('Firebase write failed: ' + res.status);
+  }
+  return res;
 }
 async function dbDelete(path) {
   if (!window.FIREBASE_DB_URL) return;
