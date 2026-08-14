@@ -423,6 +423,81 @@ async function confirmDeleteBundle(id) {
 }
 
 
+
+function buildPrizeActions(p, isEdit) {
+  var html = '<div class="m-actions">';
+  if (isEdit && p) html += '<button class="btn danger" onclick="confirmDeletePrize('+p.id+')"><i class="ti ti-trash"></i> Delete</button>';
+  html += '<button class="btn" onclick="closeModal()">Cancel</button>';
+  html += '<button class="btn primary" onclick="savePrizeModal()"><i class="ti ti-check"></i> '+(isEdit?'Save':'Add prize')+'</button>';
+  html += '</div>';
+  return html;
+}
+
+function getTagStatusHtml(p) {
+  if (!p) return '';
+  var checks = [
+    {key:'tagMade',label:'Tag made'},{key:'tagPrinted',label:'Tag printed'},
+    {key:'tagAttached',label:'Tag attached'},{key:'onTote',label:'On tote paper'},
+  ];
+  return '<div class="field"><label>Donation tag status</label>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">'+
+    checks.map(function(c,i){
+      return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--radius-sm);border:.5px solid var(--border);cursor:pointer;font-size:13px">'+
+        '<input type="checkbox" id="pm-'+c.key+'" '+(p[c.key]?'checked':'')+' style="accent-color:var(--purple);width:16px;height:16px;flex-shrink:0">'+
+        '<span><span style="font-size:10px;color:var(--text3);display:block">Step '+(i+1)+'</span>'+c.label+'</span></label>';
+    }).join('')+
+    '</div></div>';
+}
+
+function selectItemType(t) {
+  document.querySelectorAll('[id^="itype-"]').forEach(function(b){ b.classList.remove('active'); });
+  var btn = document.getElementById('itype-'+t.replace(/ /g,'_'));
+  if (btn) btn.classList.add('active');
+  var inp = document.getElementById('pm-item-type');
+  if (inp) inp.value = t;
+}
+
+function addNewItemType() {
+  var name = prompt('New item type name:');
+  if (!name || !name.trim()) return;
+  addItemType(name.trim()).then(function(){ showToast('Item type added'); openAddPrize(); });
+}
+
+async function handlePhotoFile(input) {
+  var files = Array.from(input.files);
+  for (var i=0; i<files.length; i++) {
+    showToast('Processing photo\u2026');
+    var full  = await compressImage(files[i], 1000, 0.65);
+    var thumb = await makeThumbnail(full, 150, 0.5);
+    _pendingPhotos.push({full:full, thumb:thumb});
+  }
+  renderPhotoPreview();
+  showToast('Photo added!');
+  input.value = '';
+}
+
+function renderPhotoPreview() {
+  var el = document.getElementById('photo-preview');
+  if (!el) return;
+  el.innerHTML = _pendingPhotos.map(function(ph, i) {
+    return '<div style="position:relative">'+
+      '<img src="'+ph.thumb+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="viewPendingPhoto('+i+')">'+
+      '<button onclick="removePendingPhoto('+i+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:white;border:none;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">\xd7</button>'+
+      '</div>';
+  }).join('');
+}
+
+function viewPendingPhoto(i) {
+  if (!_pendingPhotos[i]) return;
+  showModal('<img src="'+_pendingPhotos[i].full+'" style="max-width:100%;max-height:75vh;border-radius:8px;object-fit:contain;display:block;margin:0 auto">'+
+    '<div class="m-actions"><button class="btn" onclick="closeModal()">Close</button></div>');
+}
+
+function removePendingPhoto(i) {
+  _pendingPhotos.splice(i, 1);
+  renderPhotoPreview();
+}
+
 async function doAddPrize() {
   const name = document.getElementById('pm-name')?.value?.trim();
   if (!name) { showToast('Please enter a prize name','error'); return; }
