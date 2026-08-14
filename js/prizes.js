@@ -208,7 +208,7 @@ async function showPrizeModal(p, authors, itemTypes) {
       <input type="hidden" id="pm-item-type" value="${escHtml(p?.itemType||'Misc')}">
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">
       <div class="field"><label>Est value ($)</label>
         <input type="text" inputmode="decimal" id="pm-value" value="${p?.value||''}" placeholder="0.00">
       </div>
