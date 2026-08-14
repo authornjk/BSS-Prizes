@@ -138,6 +138,8 @@ async function viewPhoto(prizeId, idx) {
 // ── Add / Edit prize modal ────────────────────────────────────────────────────
 async function openAddPrize() {
   _pendingPhotos = [];
+  _editMode = false;
+  _currentPrizeId = 0;
   const authors   = getAuthors();
   const itemTypes = getItemTypes();
   await showPrizeModal(null, authors, itemTypes);
@@ -147,6 +149,8 @@ async function openEditPrize(id) {
   const p = getPrize(id);
   if (!p) return;
   _pendingPhotos = [...(p.photos||[])];
+  _editMode = true;
+  _currentPrizeId = id;
   const authors   = getAuthors();
   const itemTypes = getItemTypes();
   await showPrizeModal(p, authors, itemTypes);
@@ -439,6 +443,7 @@ function savePrizeModal() {
 }
 
 async function doAddPrize() {
+  showToast('Saving…');
   const name = document.getElementById('pm-name')?.value?.trim();
   if (!name) { showToast('Please enter a prize name','error'); return; }
   const cat = document.getElementById('pm-cat')?.value;
