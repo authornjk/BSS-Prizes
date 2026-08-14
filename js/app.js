@@ -3,9 +3,16 @@
 let _activeTab = 'prizes';
 
 async function boot() {
+  // If localStorage has the old Firebase URL, replace it with the new one
+  const storedUrl = localStorage.getItem('soiree_firebase_url');
+  const oldUrl = 'https://soiree-prizes-default-rtdb.firebaseio.com';
+  const newUrl = 'https://soiree-prizes-2027-default-rtdb.firebaseio.com';
+  if (!storedUrl || storedUrl === oldUrl) {
+    localStorage.setItem('soiree_firebase_url', newUrl);
+    window.FIREBASE_DB_URL = newUrl;
+  }
   renderShell();
   showTab('prizes');
-  // Small delay so DOM is ready before updating status
   setTimeout(() => updateSyncStatus('syncing'), 50);
   await loadAll();
   await loadBINGOGoal();
