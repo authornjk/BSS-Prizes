@@ -11,7 +11,7 @@ var _bundleMode    = false;   // are we currently building a bundle?
 var _bundleAnchor  = null;    // id of the prize that started the bundle
 var _bundleSelected = new Set(); // ids selected for current bundle
 
-const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag'];
+const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
 
 function renderPrizes() {
   const el = document.getElementById('prizes-content');
@@ -144,7 +144,7 @@ function prizeCard(p) {
     ? '<img src="'+thumb+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();viewPhoto('+p.id+',0)">'
     : '<div style="width:60px;height:60px;border-radius:6px;background:var(--bg2);border:.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:20px;color:var(--text3)"></i></div>';
 
-  return '<div class="prize-card" style="'+cardStyle+'" onclick="'+clickFn+'">'+
+  return '<div class="prize-card" style="'+cardStyle+';user-select:none" onclick="'+clickFn+'">'+
     '<div style="display:flex;gap:10px;align-items:flex-start">'+
       checkbox+
       thumbHtml+
@@ -164,11 +164,11 @@ function prizeCard(p) {
         (p.notes?'<div style="font-size:11px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(p.notes)+'</div>':'')+
       '</div>'+
       '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+
-        bundleBtn+
         '<i class="ti ti-chevron-right" style="font-size:14px;color:var(--text3)"></i>'+
       '</div>'+
     '</div>'+
     bundleLabel+
+    (bundleBtn ? '<div style="display:flex;justify-content:flex-end;margin-top:6px">'+bundleBtn+'</div>' : '')+
     extraPhotos+
   '</div>';
 }
@@ -248,12 +248,26 @@ async function toggleBundleExpand(id) {
 async function removeFromBundle(prizeId) {
   var p = getPrize(prizeId);
   if (!p) return;
-  if (confirm('Remove "'+escHtml(p.name||'this prize')+'" from the bundle and put it back as an individual prize?')) {
-    await updatePrize(prizeId, {bundledInto: null});
+  var bName = p.bundledInto;
+  if (!confirm('Remove "'+escHtml(p.name||'this prize')+'" from the bundle and put it back as an individual prize?')) return;
+  await updatePrize(prizeId, {bundledInto: null});
+  var bundle = getPrizes().find(function(b){ return b.isBundle && b.name===bName; });
+  if (bundle) {
+    var remaining = getPrizes().filter(function(q){ return q.bundledInto===bName && !q.isBundle; });
+    if (remaining.length < 2) {
+      for (var i=0; i<remaining.length; i++) await updatePrize(remaining[i].id, {bundledInto: null});
+      await deletePrize(bundle.id);
+      closeModal();
+      showToast('Bundle disbanded — items returned to list');
+    } else {
+      closeModal();
+      showToast('Removed from bundle');
+    }
+  } else {
     closeModal();
     showToast('Removed from bundle');
-    renderPrizes();
   }
+  renderPrizes();
 }
 
 async function viewPhoto(prizeId, idx) {
