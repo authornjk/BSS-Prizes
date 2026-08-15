@@ -163,12 +163,49 @@ function stackCard(grp) {
 
   var itemsHtml = '';
   if (isExpanded) {
-    itemsHtml = '<div style="margin:0 0 10px 12px;padding-left:10px;border-left:2px solid var(--border2);display:flex;flex-direction:column;gap:6px">'+
-      grp.map(function(p){ return prizeCard(p); }).join('')+
-    '</div>';
+    var rows;
+    if (grp.length === 1 && (+grp[0].qty||1) > 1) {
+      // Still a single database record — nothing's been split off yet.
+      // Show it as N separate boxes anyway so it visually matches a real
+      // stack; tapping "Bundle" on any one box splits off exactly that 1
+      // unit when a bundle is actually created.
+      var rec = grp[0];
+      var n = +rec.qty || 1;
+      rows = '';
+      for (var u=0; u<n; u++) { rows += virtualUnitCard(rec, u, n); }
+    } else {
+      rows = grp.map(function(p){ return prizeCard(p); }).join('');
+    }
+    itemsHtml = '<div style="margin:0 0 10px 12px;padding-left:10px;border-left:2px solid var(--border2);display:flex;flex-direction:column;gap:6px">'+rows+'</div>';
   }
 
   return header + itemsHtml;
+}
+
+// One visual "box" representing a single unit of a still-unsplit multi-qty
+// prize record. Not its own database entity — editing opens the shared
+// record (fields apply to all units), but bundling this specific box
+// splits off exactly 1 unit when the bundle is actually created.
+function virtualUnitCard(p, idx, total) {
+  var thumb = p.photos && p.photos[0] ? p.photos[0].thumb : null;
+  var thumbHtml = thumb
+    ? '<img src="'+thumb+'" style="width:50px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0">'
+    : '<div style="width:50px;height:50px;border-radius:6px;background:var(--bg2);border:.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:16px;color:var(--text3)"></i></div>';
+  return '<div class="prize-card" style="cursor:default">'+
+    '<div style="display:flex;gap:10px;align-items:flex-start">'+
+      thumbHtml+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">'+
+          '<span class="cat-pill cat-'+(p.cat||'').toLowerCase().replace(/ /g,'-')+'">'+escHtml(p.cat||'')+'</span>'+
+          '<span style="font-size:9px;color:var(--text3)">Unit '+(idx+1)+' of '+total+'</span>'+
+        '</div>'+
+        '<div style="font-size:14px;font-weight:600">'+escHtml(p.name||'Unnamed prize')+'</div>'+
+        (p.value?'<div style="font-size:11px;color:var(--text2);margin-top:2px">Value '+fmt$(p.value)+'</div>':'')+
+      '</div>'+
+      '<div style="flex-shrink:0;padding:4px 2px 4px 8px;cursor:pointer" onclick="openEditPrize('+p.id+')"><i class="ti ti-chevron-right" style="font-size:14px;color:var(--text3)"></i></div>'+
+    '</div>'+
+    '<div style="text-align:right;margin-top:4px"><button onclick="event.stopPropagation();startBundleFromUnit('+p.id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;font-family:inherit"><i class="ti ti-packages" style="font-size:10px"></i> Bundle this one</button></div>'+
+  '</div>';
 }
 
 function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter, searchTier) {
@@ -434,6 +471,16 @@ function startBundle(anchorId) {
   var qty = promptBundleQty(p);
   if (qty === null) return;
   _bundleQty = {}; _bundleQty[anchorId] = qty;
+  _bundleMode = true; _bundleAnchor = anchorId; _bundleSelected = new Set([anchorId]);
+  renderPrizes(); window.scrollTo(0,0);
+}
+// Starting a bundle from one specific virtual box of an unsplit multi-qty
+// stack — the "how many?" question doesn't apply here since tapping that
+// one box already means "just this 1 unit."
+function startBundleFromUnit(anchorId) {
+  var p = getPrize(anchorId);
+  if (!p) return;
+  _bundleQty = {}; _bundleQty[anchorId] = 1;
   _bundleMode = true; _bundleAnchor = anchorId; _bundleSelected = new Set([anchorId]);
   renderPrizes(); window.scrollTo(0,0);
 }
