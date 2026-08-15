@@ -634,17 +634,13 @@ async function openEditPrize(id) {
 
 async function showPrizeModal(p, authors, itemTypes) {
   var isEdit = !!p;
-  var donorType = (p&&p.donorType)||'none';
-  // Store the prize ID as a data attribute so savePrizeModal can find it reliably
   var prizeId = p ? p.id : 0;
+  var currentItemType = (p&&p.itemType)||'';
 
-  var catOptions = '<option value="">— Select category —</option>'+
-    CATEGORIES.map(function(c){return '<option'+(p&&p.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
   var typeBtns = itemTypes.map(function(t){
-    return '<button class="cat-btn'+(p&&p.itemType===t?' active':'')+'" onclick="selectItemType(\''+escHtml(t)+'\')" id="itype-'+t.replace(/ /g,'_')+'">'+escHtml(t)+'</button>';
+    return '<button class="cat-btn'+(currentItemType===t?' active':'')+'" onclick="selectItemType(\''+escHtml(t)+'\')" id="itype-'+t.replace(/ /g,'_')+'">'+escHtml(t)+'</button>';
   }).join('')+'<button class="cat-btn" onclick="addNewItemType()"><i class="ti ti-plus"></i> New</button>';
 
-  var tagHtml = isEdit ? getTagStatusHtml(p) : '';
   var actions = '<div class="m-actions">'+
     (isEdit?'<button class="btn danger" onclick="confirmDeletePrize('+p.id+')"><i class="ti ti-trash"></i> Delete</button>':'')+
     '<button class="btn" onclick="closeModal()">Cancel</button>'+
@@ -663,21 +659,110 @@ async function showPrizeModal(p, authors, itemTypes) {
   box.innerHTML =
     '<button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>'+
     '<h3>'+(isEdit?'Edit prize':'Add prize')+'</h3>'+
-    '<div class="field"><label>Prize name</label><input type="text" id="pm-name" value="'+escHtml((p&&p.name)||'')+'" placeholder="What is the prize?"></div>'+
+    '<div class="field"><label>Item type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+typeBtns+'</div><input type="hidden" id="pm-item-type" value="'+escHtml(currentItemType)+'"></div>'+
+    '<div id="prize-details"></div>'+
+    actions;
+
+  overlay.appendChild(box);
+  mc.appendChild(overlay);
+
+  // Add mode: everything below Item Type stays hidden until a type is picked.
+  // Edit mode: the type is already known, so reveal the rest immediately.
+  if (currentItemType) {
+    selectItemType(currentItemType, p);
+  }
+}
+
+// Reads whatever's already been filled in below Item Type, so switching
+// types mid-entry doesn't silently wipe category/value/donor/etc.
+function captureCurrentDetails(){
+  var donorFieldsEl = document.getElementById('donor-fields');
+  return {
+    cat: document.getElementById('pm-cat')?.value||'',
+    value: document.getElementById('pm-value')?.value||'',
+    paid: document.getElementById('pm-paid')?.value||'',
+    qty: document.getElementById('pm-qty')?.value||'',
+    loc: document.getElementById('pm-loc')?.value||'',
+    notes: document.getElementById('pm-notes')?.value||'',
+    donorType: donorFieldsEl?(donorFieldsEl.dataset.donorType||'none'):'none',
+    donor: document.getElementById('pm-donor')?.value||'',
+    donorWebsite: document.getElementById('pm-website')?.value||'',
+    donorQRType: document.getElementById('pm-qrtype')?.value||'website',
+    donorPronoun: document.getElementById('pm-pronoun')?.value||'their',
+    donorLogo: document.getElementById('pm-logo')?.value||'',
+  };
+}
+
+function selectItemType(t, preFill) {
+  document.querySelectorAll('[id^="itype-"]').forEach(function(b){b.classList.remove('active');});
+  var btn=document.getElementById('itype-'+t.replace(/ /g,'_')); if(btn)btn.classList.add('active');
+  var inp=document.getElementById('pm-item-type'); if(inp)inp.value=t;
+
+  var el = document.getElementById('prize-details');
+  if (!el) return;
+
+  // If details were already showing (user picked a type, then changed their
+  // mind), carry forward the generic fields rather than wiping them.
+  var carried = el.innerHTML.trim() ? captureCurrentDetails() : null;
+  var pf = preFill || carried || null;
+
+  var isEdit = !!(pf && pf.id);
+  var isBook = t==='Book';
+  var isClothing = t==='Clothing';
+
+  var nameSection;
+  if (isBook) {
+    // Legacy prizes saved before this field existed: fall back to showing
+    // the old manually-typed name in Title so it isn't silently lost.
+    var titleVal = (pf&&pf.bookTitle) || ((pf&&pf.id&&!pf.author) ? (pf.name||'') : '');
+    nameSection =
+      '<div class="field"><label>Author</label><input type="text" id="pm-author" value="'+escHtml((pf&&pf.author)||'')+'" placeholder="Author name"></div>'+
+      '<div class="field"><label>Title of book/series</label><input type="text" id="pm-book-title" value="'+escHtml(titleVal)+'" placeholder="Book or series title"></div>';
+  } else if (isClothing) {
+    var ctype=(pf&&pf.clothingType)||'';
+    var csize=(pf&&pf.clothingSize)||'';
+    var descVal = (pf&&pf.clothingDescription) || ((pf&&pf.id&&!pf.clothingType) ? (pf.name||'') : '');
+    nameSection =
+      '<div class="field"><label>Type of clothing</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        ['T-shirt','Sweatshirt','Other'].map(function(ct){
+          return '<button type="button" class="cat-btn'+(ctype===ct?' active':'')+'" onclick="selectClothingType(\''+ct+'\')" id="ctype-'+ct.replace(/[^a-zA-Z]/g,'')+'">'+ct+'</button>';
+        }).join('')+
+      '</div><input type="hidden" id="pm-clothing-type" value="'+escHtml(ctype)+'">'+
+      '<div id="clothing-type-other-field" style="display:'+(ctype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-type-custom" value="'+escHtml((pf&&pf.clothingTypeCustom)||'')+'" placeholder="Describe the clothing type"></div>'+
+      '</div>'+
+      '<div class="field"><label>Description</label><input type="text" id="pm-clothing-desc" value="'+escHtml(descVal)+'" placeholder="e.g. navy with gold logo"></div>'+
+      '<div class="field"><label>Size</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        ['XS','S','M','L','XL','XXL','XXXL','Other'].map(function(sz){
+          var val=sz==='Other'?'Custom':sz;
+          return '<button type="button" class="cat-btn'+(csize===val?' active':'')+'" onclick="selectClothingSize(\''+val+'\')" id="csize-'+val+'">'+sz+'</button>';
+        }).join('')+
+      '</div><input type="hidden" id="pm-clothing-size" value="'+escHtml(csize)+'">'+
+      '<div id="clothing-size-other-field" style="display:'+(csize==='Custom'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-size-custom" value="'+escHtml((pf&&pf.clothingSizeCustom)||'')+'" placeholder="Enter size"></div>'+
+      '</div>';
+  } else {
+    nameSection = '<div class="field"><label>Prize name</label><input type="text" id="pm-name" value="'+escHtml((pf&&pf.name)||'')+'" placeholder="What is the prize?"></div>';
+  }
+
+  var catOptions = '<option value="">— Select category —</option>'+
+    CATEGORIES.map(function(c){return '<option'+(pf&&pf.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
+
+  var tagHtml = isEdit ? getTagStatusHtml(pf) : '';
+
+  el.innerHTML =
+    nameSection+
     '<div class="field"><label>Category</label><select id="pm-cat">'+catOptions+'</select></div>'+
-    '<div class="field"><label>Item type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+typeBtns+'</div><input type="hidden" id="pm-item-type" value="'+escHtml((p&&p.itemType)||'Misc')+'"></div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+
-      '<div class="field"><label>Value ($)</label><input type="text" inputmode="decimal" id="pm-value" value="'+((p&&p.value)||'')+'" placeholder="0.00"></div>'+
-      '<div class="field"><label>Amount paid ($)</label><input type="text" inputmode="decimal" id="pm-paid" value="'+((p&&p.paid)||'')+'" placeholder="0.00"></div>'+
-      '<div class="field"><label>Qty</label><input type="number" id="pm-qty" value="'+((p&&p.qty)||'')+'" placeholder="1" min="1"></div>'+
-      '<div class="field"><label>Location</label><input type="text" id="pm-loc" value="'+escHtml((p&&p.loc)||'')+'" placeholder="Where is it?"></div>'+
+      '<div class="field"><label>Value ($)</label><input type="text" inputmode="decimal" id="pm-value" value="'+((pf&&pf.value)||'')+'" placeholder="0.00"></div>'+
+      '<div class="field"><label>Amount paid ($)</label><input type="text" inputmode="decimal" id="pm-paid" value="'+((pf&&pf.paid)||'')+'" placeholder="0.00"></div>'+
+      '<div class="field"><label>Qty</label><input type="number" id="pm-qty" value="'+((pf&&pf.qty)||'')+'" placeholder="1" min="1"></div>'+
+      '<div class="field"><label>Location</label><input type="text" id="pm-loc" value="'+escHtml((pf&&pf.loc)||'')+'" placeholder="Where is it?"></div>'+
     '</div>'+
-    '<div class="field"><label>Notes</label><textarea id="pm-notes" rows="2" placeholder="Any notes\u2026">'+escHtml((p&&p.notes)||'')+'</textarea></div>'+
+    '<div class="field"><label>Notes</label><textarea id="pm-notes" rows="2" placeholder="Any notes\u2026">'+escHtml((pf&&pf.notes)||'')+'</textarea></div>'+
     '<div class="field"><label>Donor</label>'+
       '<div style="display:flex;gap:6px;margin-bottom:8px">'+
-        '<button class="cat-btn'+(donorType==='none'?' active':'')+'" onclick="setDonorType(\'none\')" id="donor-btn-none">None</button>'+
-        '<button class="cat-btn'+(donorType==='author'?' active':'')+'" onclick="setDonorType(\'author\')" id="donor-btn-author">Author</button>'+
-        '<button class="cat-btn'+(donorType==='business'?' active':'')+'" onclick="setDonorType(\'business\')" id="donor-btn-business">Business</button>'+
+        '<button class="cat-btn'+((!pf||!pf.donorType||pf.donorType==='none')?' active':'')+'" onclick="setDonorType(\'none\')" id="donor-btn-none">None</button>'+
+        '<button class="cat-btn'+((pf&&pf.donorType==='author')?' active':'')+'" onclick="setDonorType(\'author\')" id="donor-btn-author">Author</button>'+
+        '<button class="cat-btn'+((pf&&pf.donorType==='business')?' active':'')+'" onclick="setDonorType(\'business\')" id="donor-btn-business">Business</button>'+
       '</div>'+
       '<div id="donor-fields"></div>'+
     '</div>'+
@@ -688,30 +773,34 @@ async function showPrizeModal(p, authors, itemTypes) {
         '<label class="btn" style="cursor:pointer"><i class="ti ti-photo"></i> Choose<input type="file" accept="image/*" multiple style="display:none" onchange="handlePhotoFile(this)"></label>'+
       '</div>'+
     '</div>'+
-    tagHtml+
-    actions;
+    tagHtml;
 
-  overlay.appendChild(box);
-  mc.appendChild(overlay);
-
-  setDonorType(donorType, p);
+  setDonorType((pf&&pf.donorType)||'none', pf);
   renderPhotoPreview();
-  if (p&&p.donor) {
+  if (pf&&pf.donor) {
     setTimeout(function(){
-      var el=document.getElementById('pm-donor'); if(el){el.value=p.donor;toggleOtherAuthor(p.donor);}
-      var ws=document.getElementById('pm-website'); if(ws&&p.donorWebsite)ws.value=p.donorWebsite;
-      var qt=document.getElementById('pm-qrtype');  if(qt&&p.donorQRType) qt.value=p.donorQRType;
-      var pr=document.getElementById('pm-pronoun'); if(pr&&p.donorPronoun)pr.value=p.donorPronoun;
-      var lg=document.getElementById('pm-logo');    if(lg&&p.donorLogo)   lg.value=p.donorLogo;
-      if(p.donationTagType) setDonationTagType(p.donationTagType);
+      var elx=document.getElementById('pm-donor'); if(elx){elx.value=pf.donor;toggleOtherAuthor(pf.donor);}
+      var ws=document.getElementById('pm-website'); if(ws&&pf.donorWebsite)ws.value=pf.donorWebsite;
+      var qt=document.getElementById('pm-qrtype');  if(qt&&pf.donorQRType) qt.value=pf.donorQRType;
+      var pr=document.getElementById('pm-pronoun'); if(pr&&pf.donorPronoun)pr.value=pf.donorPronoun;
+      var lg=document.getElementById('pm-logo');    if(lg&&pf.donorLogo)   lg.value=pf.donorLogo;
     },50);
   }
 }
 
-function selectItemType(t) {
-  document.querySelectorAll('[id^="itype-"]').forEach(function(b){b.classList.remove('active');});
-  var btn=document.getElementById('itype-'+t.replace(/ /g,'_')); if(btn)btn.classList.add('active');
-  var inp=document.getElementById('pm-item-type'); if(inp)inp.value=t;
+function selectClothingType(t) {
+  ['T-shirt','Sweatshirt','Other'].forEach(function(x){
+    var btn=document.getElementById('ctype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
+  });
+  var inp=document.getElementById('pm-clothing-type'); if(inp)inp.value=t;
+  var otherField=document.getElementById('clothing-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
+}
+function selectClothingSize(v) {
+  ['XS','S','M','L','XL','XXL','XXXL','Custom'].forEach(function(x){
+    var btn=document.getElementById('csize-'+x); if(btn)btn.classList.toggle('active',x===v);
+  });
+  var inp=document.getElementById('pm-clothing-size'); if(inp)inp.value=v;
+  var otherField=document.getElementById('clothing-size-other-field'); if(otherField)otherField.style.display=v==='Custom'?'block':'none';
 }
 function addNewItemType() {
   var name=prompt('New item type name:');
@@ -724,7 +813,7 @@ function setDonorType(type, preFill) {
     var btn=document.getElementById('donor-btn-'+t); if(btn)btn.classList.toggle('active',t===type);
   });
   var el=document.getElementById('donor-fields'); if(!el)return;
-  if(type==='none'){el.innerHTML='';return;}
+  if(type==='none'){el.innerHTML='';el.dataset.donorType='none';return;}
   var isAuthor=type==='author';
   var authors=getAuthors();
   var html='';
@@ -740,13 +829,6 @@ function setDonorType(type, preFill) {
     html+='<div class="field"><label>Business name</label><input type="text" id="pm-donor" placeholder="Business name"></div>';
   }
   html+=
-    '<div class="field"><label>Tag type</label><div style="display:flex;gap:6px">'+
-      ['book','clothing','other'].map(function(t){
-        var current=(preFill&&preFill.donationTagType)||'book';
-        var lbl=t==='book'?'Book':t==='clothing'?'Clothing':'Other';
-        return '<button type="button" class="cat-btn'+(current===t?' active':'')+'" onclick="setDonationTagType(\''+t+'\')" id="dtag-btn-'+t+'">'+lbl+'</button>';
-      }).join('')+
-    '</div><input type="hidden" id="pm-donation-tag-type" value="'+((preFill&&preFill.donationTagType)||'book')+'"></div>'+
     '<div class="field"><label>Donor website (for QR code)</label><input type="text" id="pm-website" placeholder="https://\u2026"></div>'+
     '<div class="field"><label>QR type</label><select id="pm-qrtype"><option value="website">Website</option><option value="instagram">Instagram</option></select></div>'+
     '<div class="field"><label>Pronoun</label><select id="pm-pronoun"><option value="their">their</option><option value="her">her</option><option value="his">his</option></select></div>'+
@@ -760,12 +842,6 @@ function setDonorType(type, preFill) {
     '</div>';
   el.innerHTML=html;
   el.dataset.donorType=type;
-}
-function setDonationTagType(t){
-  ['book','clothing','other'].forEach(function(x){
-    var btn=document.getElementById('dtag-btn-'+x); if(btn)btn.classList.toggle('active',x===t);
-  });
-  var inp=document.getElementById('pm-donation-tag-type'); if(inp)inp.value=t;
 }
 function toggleOtherAuthor(val){
   var f=document.getElementById('other-author-field'); if(f)f.style.display=val==='__other__'?'block':'none';
@@ -823,9 +899,8 @@ function parseMoney(val){
 }
 function getDonorFields(){
   var el=document.getElementById('donor-fields');
-  if(!el)return{donorType:'none'};
-  var type=el.dataset.donorType||'none';
-  if(type==='none')return{donorType:'none',donor:'',donorWebsite:'',donorQRType:'website',donorPronoun:'their',donorLogo:'',donationTagType:''};
+  if(!el||!el.dataset.donorType||el.dataset.donorType==='none')return{donorType:'none',donor:'',donorWebsite:'',donorQRType:'website',donorPronoun:'their',donorLogo:''};
+  var type=el.dataset.donorType;
   var donor=document.getElementById('pm-donor')?.value||'';
   if(donor==='__other__')donor=document.getElementById('pm-other-author')?.value?.trim()||'';
   return{donorType:type,donor:donor,
@@ -833,32 +908,72 @@ function getDonorFields(){
     donorQRType:document.getElementById('pm-qrtype')?.value||'website',
     donorPronoun:document.getElementById('pm-pronoun')?.value||'their',
     donorLogo:document.getElementById('pm-logo')?.value?.trim()||'',
-    donationTagType:document.getElementById('pm-donation-tag-type')?.value||'book',
     needTag:!!donor.trim()};
 }
 
+// Builds the prize name (and any type-specific fields to persist) from
+// whichever set of fields is showing, based on the selected Item Type.
+// donationTagType drives which physical tag template gets used later.
+function computePrizeNameAndTypeFields(){
+  var itemType = document.getElementById('pm-item-type')?.value||'';
+  if (itemType==='Book') {
+    var author=document.getElementById('pm-author')?.value?.trim()||'';
+    var title=document.getElementById('pm-book-title')?.value?.trim()||'';
+    var name = (author&&title) ? (author+': '+title) : (author||title);
+    return {ok:!!(author&&title), name:name, extra:{author:author,bookTitle:title}, donationTagType:'book'};
+  }
+  if (itemType==='Clothing') {
+    var ctypeRaw=document.getElementById('pm-clothing-type')?.value||'';
+    var ctypeCustom=document.getElementById('pm-clothing-type-custom')?.value?.trim()||'';
+    var ctypeResolved = ctypeRaw==='Other' ? (ctypeCustom||'Other') : ctypeRaw;
+    var desc=document.getElementById('pm-clothing-desc')?.value?.trim()||'';
+    var sizeRaw=document.getElementById('pm-clothing-size')?.value||'';
+    var sizeCustom=document.getElementById('pm-clothing-size-custom')?.value?.trim()||'';
+    var sizeResolved = sizeRaw==='Custom' ? (sizeCustom||'') : sizeRaw;
+    var name = (ctypeResolved&&desc) ? (ctypeResolved+': '+desc+(sizeResolved?', '+sizeResolved:'')) : '';
+    return {ok:!!(ctypeRaw&&desc&&sizeRaw), name:name, extra:{
+      clothingType:ctypeRaw, clothingTypeCustom:ctypeCustom,
+      clothingDescription:desc,
+      clothingSize:sizeRaw, clothingSizeCustom:sizeCustom
+    }, donationTagType:'clothing'};
+  }
+  var name=document.getElementById('pm-name')?.value?.trim()||'';
+  return {ok:!!name, name:name, extra:{}, donationTagType:'other'};
+}
+
+function prizeValidationMessage(itemType){
+  if(itemType==='Book') return 'Please enter both author and title';
+  if(itemType==='Clothing') return 'Please fill in clothing type, description, and size';
+  return 'Please enter a prize name';
+}
+
 async function doAddPrize(){
-  showToast('Saving\u2026');
-  var name=document.getElementById('pm-name')?.value?.trim();
-  if(!name){showToast('Please enter a prize name','error');return;}
+  var itemType=document.getElementById('pm-item-type')?.value;
+  if(!itemType){showToast('Please select an item type','error');return;}
+  var gen=computePrizeNameAndTypeFields();
+  if(!gen.ok){showToast(prizeValidationMessage(itemType),'error');return;}
   var cat=document.getElementById('pm-cat')?.value;
   if(!cat){showToast('Please select a category','error');return;}
+  showToast('Saving\u2026');
   var donor=getDonorFields();
-  await addPrize({name:name,cat:cat,
-    itemType:document.getElementById('pm-item-type')?.value||'Misc',
+  await addPrize({name:gen.name,cat:cat,
+    itemType:itemType,
+    donationTagType:gen.donationTagType,
     value:parseMoney(document.getElementById('pm-value')?.value),
     paid:parseMoney(document.getElementById('pm-paid')?.value),
     qty:parseInt(document.getElementById('pm-qty')?.value)||1,
     loc:document.getElementById('pm-loc')?.value?.trim()||'',
     notes:document.getElementById('pm-notes')?.value?.trim()||'',
-    photos:[..._pendingPhotos],...donor});
+    photos:[..._pendingPhotos],...gen.extra,...donor});
   _pendingPhotos=[]; _editMode=false; _currentPrizeId=0;
   closeModal(); renderPrizes(); renderGoals();
 }
 
 async function doEditPrize(id){
-  var name=document.getElementById('pm-name')?.value?.trim();
-  if(!name){showToast('Please enter a prize name','error');return;}
+  var itemType=document.getElementById('pm-item-type')?.value;
+  if(!itemType){showToast('Please select an item type','error');return;}
+  var gen=computePrizeNameAndTypeFields();
+  if(!gen.ok){showToast(prizeValidationMessage(itemType),'error');return;}
   var donor=getDonorFields();
   var tagFields={
     tagMade:document.getElementById('pm-tagMade')?.checked||false,
@@ -866,15 +981,16 @@ async function doEditPrize(id){
     tagAttached:document.getElementById('pm-tagAttached')?.checked||false,
     onTote:document.getElementById('pm-onTote')?.checked||false,
   };
-  await updatePrize(id,{name:name,
+  await updatePrize(id,{name:gen.name,
     cat:document.getElementById('pm-cat')?.value||'',
-    itemType:document.getElementById('pm-item-type')?.value||'Misc',
+    itemType:itemType,
+    donationTagType:gen.donationTagType,
     value:parseMoney(document.getElementById('pm-value')?.value),
     paid:parseMoney(document.getElementById('pm-paid')?.value),
     qty:parseInt(document.getElementById('pm-qty')?.value)||1,
     loc:document.getElementById('pm-loc')?.value?.trim()||'',
     notes:document.getElementById('pm-notes')?.value?.trim()||'',
-    photos:[..._pendingPhotos],...donor,...tagFields});
+    photos:[..._pendingPhotos],...gen.extra,...donor,...tagFields});
   _pendingPhotos=[]; _editMode=false; _currentPrizeId=0;
   closeModal(); showToast('Prize saved!'); renderPrizes(); renderGoals();
 }
