@@ -15,7 +15,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ctrl-select option{color:#2C2C2C;background:white}
 .btn-print{background:white;color:#3C3489;border:none;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
 .loading{text-align:center;padding:40px;color:#666;font-size:14px}
-.sheet{width:fit-content;margin:20px auto;background:white}
+.sheet{width:fit-content;margin:0 auto;background:white}
+/* Visual-only representation of the physical 8.5"×11" sheet with the 8"×10"
+   tag table centered inside it (0.25in side / 0.5in top-bottom margin) — so
+   the printer allowance is actually visible on screen, not just baked into
+   the invisible @page rule above which only applies once you print/export. */
+.page-frame{width:8.5in;margin:28px auto;background:white;box-shadow:0 2px 14px rgba(0,0,0,.18);position:relative;padding:0.5in 0.25in;box-sizing:border-box}
+.page-frame-label{position:absolute;top:-20px;left:0;font-size:11px;color:#888;font-family:-apple-system,sans-serif}
+.page-frame .sheet{outline:1px dashed #bbb}
+@media print{
+  .page-frame{width:auto;box-shadow:none;padding:0;margin:0}
+  .page-frame-label{display:none}
+  .page-frame .sheet{outline:none}
+}
 
 /* ── BOOK tag: 2"×5", 4 cols × 2 rows = 8in × 10in table (printer allowance built into @page margin above) ── */
 .page-book{display:grid;grid-template-columns:repeat(4,2in);grid-template-rows:repeat(2,5in);gap:0;background:white;page-break-after:always}
@@ -219,7 +231,10 @@ function buildSheets(){
   for(let i=0;i<prizes.length;i+=PER){
     const batch=prizes.slice(i,i+PER);
     while(batch.length<PER) batch.push(null);
-    html+=`<div class="sheet"><div class="${pageClass}">${batch.map(p=>p?tagFn(p):`<div class="${emptyClass} empty-slot"></div>`).join('')}</div></div>`;
+    const sheetHtml=`<div class="sheet"><div class="${pageClass}">${batch.map(p=>p?tagFn(p):`<div class="${emptyClass} empty-slot"></div>`).join('')}</div></div>`;
+    html+=type==='book'
+      ? `<div class="page-frame"><div class="page-frame-label">8.5" × 11" sheet — dashed line shows the 8" × 10" tag table (0.25in side / 0.5in top-bottom margin)</div>${sheetHtml}</div>`
+      : sheetHtml;
   }
   wrap.innerHTML=html;
   document.getElementById('ctrl-title').textContent=`🔖 ${prizes.length} ${type} tag${prizes.length!==1?'s':''}`;
