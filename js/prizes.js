@@ -1041,6 +1041,17 @@ function selectItemType(t, preFill) {
 
   setDonorType((pf&&pf.donorType)||'none', pf);
   renderPhotoPreview();
+
+  // Add flow only: just finished the last staged field, so pop the Category
+  // picker open immediately rather than leaving it sitting there unopened.
+  if (!isEdit) {
+    var catSelEl = document.getElementById('pm-cat');
+    if (catSelEl) {
+      catSelEl.focus();
+      if (typeof catSelEl.showPicker === 'function') { try { catSelEl.showPicker(); } catch(e){} }
+    }
+  }
+
   if (pf&&pf.donor) {
     setTimeout(function(){
       var elx=document.getElementById('pm-donor'); if(elx){elx.value=pf.donor;toggleOtherAuthor(pf.donor);}
