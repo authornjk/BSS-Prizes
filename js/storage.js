@@ -88,6 +88,14 @@ function showModal(html) {
   </div>`;
 }
 function closeModal() {
+  // If a "remove from bundle" flow is mid-way (e.g. someone tapped the X or
+  // clicked outside instead of the flow's own Cancel button), route through
+  // its cancel handler first so an in-progress Edit Bundle rename/category
+  // change gets restored instead of silently discarded.
+  if (typeof _removeFlow !== 'undefined' && _removeFlow && typeof cancelRemoveFlow === 'function') {
+    cancelRemoveFlow();
+    return;
+  }
   const mc = document.getElementById('modal-container');
   if (mc) mc.innerHTML = '';
   // Always reset prize edit state when modal closes
