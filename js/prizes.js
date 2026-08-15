@@ -10,6 +10,7 @@ var _bundleAnchor  = null;
 var _bundleSelected = new Set();
 var _currentPrizeId = 0;
 var _editMode       = false;
+var _removeFlow      = null; // in-progress "remove from bundle" flow state
 
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
 
@@ -114,9 +115,11 @@ function prizeCard(p) {
     ? (isBundled || isRaffle ? '' : 'toggleBundleSelect('+p.id+')')
     : 'openEditPrize('+p.id+')';
 
-  var opacity = (isBundled || (isRaffle && _bundleMode)) ? 'opacity:0.45;' : '';
-  var border  = (isSelected||isAnchor) ? 'border-color:var(--purple);' : '';
-  var bg      = (isSelected||isAnchor) ? 'background:var(--purple-bg);' : 'background:var(--bg);';
+  // In bundle mode: raffle prizes can't be bundled — dim them to show they're unselectable.
+  // Prizes already in a bundle get a light-blue tint (not dimmed) so they stay readable.
+  var opacity = (isRaffle && _bundleMode && !isBundled) ? 'opacity:0.45;' : '';
+  var border  = (isSelected||isAnchor) ? 'border-color:var(--purple);' : (isBundled ? 'border-color:var(--blue,#3B82F6);' : '');
+  var bg      = (isSelected||isAnchor) ? 'background:var(--purple-bg);' : (isBundled ? 'background:var(--blue-bg,#EAF3FF);' : 'background:var(--bg);');
 
   var checkbox = '';
   if (_bundleMode && !isBundled && !isRaffle) {
@@ -210,7 +213,7 @@ function bundleCard(b) {
         th+
         '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500">'+escHtml(p.name||'')+'</div>'+
         '<div style="font-size:10px;color:var(--text3)">'+escHtml(p.cat||'')+' · '+escHtml(p.itemType||'')+'</div></div>'+
-        '<button onclick="event.stopPropagation();removeFromBundle('+p.id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--red);cursor:pointer;font-family:inherit">Remove</button>'+
+        '<button onclick="event.stopPropagation();openRemoveFromBundleFlow('+p.id+','+b.id+',false)" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--red);cursor:pointer;font-family:inherit">Remove</button>'+
       '</div>';
     });
     itemsHtml += '</div>';
@@ -332,26 +335,149 @@ async function createBundle() {
   showToast('Bundle "'+name+'" created!'); renderPrizes(); renderGoals();
 }
 
-async function removeFromBundle(prizeId) {
+// ── Remove-from-bundle flow ─────────────────────────────────────────────────
+// Replaces the old native confirm() dialog. When launched from inside the
+// Edit Bundle modal (inModal=true), we capture whatever the coordinator/admin
+// has already typed into the name/category fields before opening this flow,
+// and restore it afterward — so an in-progress rename/category change isn't
+// lost just because they also removed an item.
+function captureEditBundleOverrides() {
+  var nameEl = document.getElementById('eb-name');
+  if (!nameEl) return null;
+  var catEl = document.getElementById('eb-cat');
+  return {name: nameEl.value, cat: catEl ? catEl.value : undefined};
+}
+
+function openRemoveFromBundleFlow(prizeId, bundleId, inModal) {
   var p = getPrize(prizeId);
-  if (!p) return;
-  if (confirm('Remove "'+escHtml(p.name||'this prize')+'" from bundle and return it as an individual prize?')) {
-    var bundleName = p.bundledInto;
-    await updatePrize(prizeId, {bundledInto: null});
-    var remaining = getPrizes().filter(function(q){ return q.bundledInto===bundleName && !q.isBundle; });
-    if (remaining.length < 2) {
-      var br = getPrizes().find(function(q){ return q.isBundle && q.name===bundleName; });
-      if (br) {
-        for (var i=0;i<remaining.length;i++) await updatePrize(remaining[i].id,{bundledInto:null});
-        await deletePrize(br.id);
-        showToast('Bundle disbanded — only 1 item left');
-      } else { showToast('Removed from bundle'); }
-    } else { showToast('Removed from bundle'); }
-    closeModal(); renderPrizes(); renderGoals();
+  var bundle = getPrize(bundleId);
+  if (!p || !bundle) return;
+  _removeFlow = {
+    prizeId: prizeId,
+    bundleId: bundleId,
+    inModal: !!inModal,
+    overrides: inModal ? captureEditBundleOverrides() : null
+  };
+  var otherBundles = getPrizes().filter(function(b){ return b.isBundle && b.id !== bundleId; });
+  var html = '<h3>Remove from bundle</h3>'+
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:14px">Remove "'+escHtml(p.name||'this prize')+'" from "'+escHtml(bundle.name||'')+'"?</p>'+
+    '<div style="display:flex;flex-direction:column;gap:8px">'+
+      '<button class="btn primary" onclick="confirmRemoveAsIndividual()"><i class="ti ti-package-off"></i> Remove — make individual prize</button>'+
+      (otherBundles.length ? '<button class="btn" onclick="showMoveToBundleList()"><i class="ti ti-arrows-right-left"></i> Move to another bundle</button>' : '')+
+    '</div>'+
+    '<div class="m-actions"><button class="btn" onclick="cancelRemoveFlow()">Cancel</button></div>';
+  showModal(html);
+}
+
+function cancelRemoveFlow() {
+  var flow = _removeFlow; _removeFlow = null;
+  if (flow && flow.inModal) {
+    openEditBundle(flow.bundleId, flow.overrides);
+  } else {
+    closeModal();
   }
 }
 
-function openEditBundle(id) {
+// Detaches a prize from bundleName, auto-disbanding the bundle if it would
+// drop below 2 remaining items. Returns true if the bundle got disbanded.
+async function detachFromBundle(bundleName) {
+  var remaining = getPrizes().filter(function(q){ return q.bundledInto===bundleName && !q.isBundle; });
+  if (remaining.length < 2) {
+    var br = getPrizes().find(function(q){ return q.isBundle && q.name===bundleName; });
+    if (br) {
+      for (var i=0;i<remaining.length;i++) await updatePrize(remaining[i].id,{bundledInto:null});
+      await deletePrize(br.id);
+      showToast('Bundle disbanded — only 1 item left');
+      return true;
+    }
+  }
+  return false;
+}
+
+async function confirmRemoveAsIndividual() {
+  var flow = _removeFlow;
+  if (!flow) return;
+  var p = getPrize(flow.prizeId);
+  if (!p) { _removeFlow=null; closeModal(); return; }
+  var bundleName = p.bundledInto;
+  await updatePrize(flow.prizeId, {bundledInto: null});
+  var disbanded = bundleName ? await detachFromBundle(bundleName) : false;
+  if (!disbanded) showToast('Removed from bundle');
+
+  renderPrizes(); renderGoals();
+  _removeFlow = null;
+  if (flow.inModal && !disbanded) {
+    openEditBundle(flow.bundleId, flow.overrides);
+  } else {
+    closeModal();
+  }
+}
+
+function showMoveToBundleList() {
+  var flow = _removeFlow;
+  if (!flow) return;
+  var otherBundles = getPrizes().filter(function(b){ return b.isBundle && b.id !== flow.bundleId; });
+  var html = '<h3>Move to which bundle?</h3>'+
+    '<div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-bottom:12px">'+
+      otherBundles.map(function(b){
+        return '<button class="btn" style="text-align:left;justify-content:flex-start" onclick="showRenameTargetBundle('+b.id+')">'+escHtml(b.name||'Bundle')+'</button>';
+      }).join('')+
+    '</div>'+
+    '<div class="m-actions"><button class="btn" onclick="cancelRemoveFlow()">Cancel</button></div>';
+  showModal(html);
+}
+
+function showRenameTargetBundle(targetBundleId) {
+  var flow = _removeFlow;
+  if (!flow) return;
+  var target = getPrize(targetBundleId);
+  if (!target) return;
+  flow.targetBundleId = targetBundleId;
+  var html = '<h3>Rename bundle?</h3>'+
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Moving into "'+escHtml(target.name||'')+'". Edit the name below if you want to rename it, or leave it as is.</p>'+
+    '<div class="field"><label>Bundle name</label><input type="text" id="move-target-name" value="'+escHtml(target.name||'')+'" style="width:100%"></div>'+
+    '<div class="m-actions">'+
+      '<button class="btn" onclick="cancelRemoveFlow()">Cancel</button>'+
+      '<button class="btn primary" onclick="saveMoveToBundle()"><i class="ti ti-check"></i> Save</button>'+
+    '</div>';
+  showModal(html);
+  setTimeout(function(){ document.getElementById('move-target-name')?.focus(); },50);
+}
+
+async function saveMoveToBundle() {
+  var flow = _removeFlow;
+  if (!flow || !flow.targetBundleId) return;
+  var newName = document.getElementById('move-target-name')?.value?.trim();
+  var target = getPrize(flow.targetBundleId);
+  if (!target) { _removeFlow=null; closeModal(); return; }
+  if (!newName) { showToast('Please enter a bundle name','error'); return; }
+
+  // Rename the target bundle everywhere (its record + all its current items) if changed
+  if (newName !== target.name) {
+    var targetItems = getPrizes().filter(function(p){ return p.bundledInto===target.name && !p.isBundle; });
+    for (var i=0;i<targetItems.length;i++) await updatePrize(targetItems[i].id,{bundledInto:newName});
+    await updatePrize(flow.targetBundleId, {name:newName});
+  }
+
+  var p = getPrize(flow.prizeId);
+  var oldBundleName = p ? p.bundledInto : null;
+  await updatePrize(flow.prizeId, {bundledInto: newName});
+  var disbandedOld = oldBundleName ? await detachFromBundle(oldBundleName) : false;
+
+  showToast('Moved to "'+newName+'"');
+  renderPrizes(); renderGoals();
+
+  var inModal = flow.inModal, bundleId = flow.bundleId, overrides = flow.overrides;
+  _removeFlow = null;
+  if (inModal && !disbandedOld) {
+    openEditBundle(bundleId, overrides);
+  } else {
+    closeModal();
+  }
+}
+
+function openEditBundle(id, overrides) {
+  overrides = overrides || {};
   var b = getPrize(id);
   if (!b||!b.isBundle) return;
   var bName = b.name||String(b.id);
@@ -368,17 +494,19 @@ function openEditBundle(id) {
   var avail = getPrizes().filter(function(p){
     return !p.isBundle && !p.bundledInto && p.cat!=='Raffle' && !itemIds.has(p.id);
   });
+  var nameVal = overrides.name !== undefined ? overrides.name : (b.name||'');
+  var catVal  = overrides.cat  !== undefined ? overrides.cat  : (b.cat||'');
   showModal(
     '<h3>Edit bundle</h3>'+
-    '<div class="field"><label>Bundle name</label><input type="text" id="eb-name" value="'+escHtml(b.name||'')+'" style="width:100%"></div>'+
+    '<div class="field"><label>Bundle name</label><input type="text" id="eb-name" value="'+escHtml(nameVal)+'" style="width:100%"></div>'+
     '<div class="field"><label>Category</label><select id="eb-cat" style="width:100%">'+
-      CATEGORIES.filter(function(c){return c!=='Raffle';}).map(function(c){return '<option'+(b.cat===c?' selected':'')+'>'+c+'</option>';}).join('')+
+      CATEGORIES.filter(function(c){return c!=='Raffle';}).map(function(c){return '<option'+(catVal===c?' selected':'')+'>'+c+'</option>';}).join('')+
     '</select></div>'+
     '<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">In bundle ('+items.length+')</div>'+
     '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">'+
       items.map(function(p){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--radius-sm)">'+
         '<div style="flex:1;font-size:12px">'+escHtml(p.name||'')+'</div>'+
-        '<button onclick="removeFromBundle('+p.id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--red);cursor:pointer;font-family:inherit">Remove</button>'+
+        '<button onclick="openRemoveFromBundleFlow('+p.id+','+id+',true)" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--red);cursor:pointer;font-family:inherit">Remove</button>'+
       '</div>';}).join('')+
     '</div>'+
     (avail.length?'<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">Add to bundle</div>'+
