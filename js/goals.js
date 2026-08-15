@@ -136,9 +136,16 @@ function renderGoals() {
   var goals = getGoals();
   var budgetEl = document.getElementById('budget-bar');
   if (budgetEl) renderBudgetBar(prizes, budgetEl);
-  var cats = ['BINGO','Raffle','Medium','Small'];
-  var html = '';
-  cats.forEach(function(cat) {
+
+  // Simple count-only card (no goal/needed comparison) — used for
+  // Uncategorized and SWAG, which don't have a target to hit.
+  function simpleCountCard(label, count, caption) {
+    return '<div class="goal-card"><div style="font-size:10px;font-weight:600;color:var(--text2)">'+label+'</div>'+
+      '<div style="font-size:14px;font-weight:600;margin:2px 0">'+count+'</div>'+
+      '<div style="font-size:9px;color:var(--text3)">'+caption+'</div></div>';
+  }
+
+  function goalCardHtml(cat) {
     // For Medium/Small, goal = number of items in prize list
     var isList = (cat==='Medium' || cat==='Small');
     var isAuto = (cat==='BINGO');
@@ -160,7 +167,7 @@ function renderGoals() {
       footer = '<button onclick="openGoalNotes(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;margin-top:1px" title="Notes"><i class="ti ti-pencil" style="font-size:11px"></i></button>'+
         (notes?'<div style="font-size:9px;color:var(--text3);margin-top:2px;text-align:left;word-break:break-word">'+escHtml(notes.substring(0,50))+(notes.length>50?'\u2026':'')+'</div>':'');
     }
-    html += '<div class="goal-card" style="border-color:var(--'+cls+')">'+
+    return '<div class="goal-card" style="border-color:var(--'+cls+')">'+
       '<div style="font-size:10px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
       '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;margin:2px 0">'+
         '<span style="font-size:14px;font-weight:600;color:var(--text)">'+have+'</span>'+
@@ -169,9 +176,20 @@ function renderGoals() {
       '<div style="font-size:12px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
       footer+
     '</div>';
-  });
-  var swagCount = prizes.filter(function(p){ return p.cat==='SWAG Bag'; }).length;
-  html += '<div class="goal-card"><div style="font-size:10px;font-weight:600;color:var(--text2)">SWAG Bag</div><div style="font-size:14px;font-weight:600;margin:2px 0">'+swagCount+'</div><div style="font-size:9px;color:var(--text3)">no limit</div></div>';
+  }
+
+  var uncatCount = prizes.filter(function(p){ return p.cat==='Uncategorized'; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
+  var swagCount  = prizes.filter(function(p){ return p.cat==='SWAG Bag'; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
+
+  // Row 1: Prizes, Raffle, Uncategorized · Row 2: Medium, Small, SWAG
+  var html =
+    goalCardHtml('BINGO') +
+    goalCardHtml('Raffle') +
+    simpleCountCard('Uncategorized', uncatCount, 'count only') +
+    goalCardHtml('Medium') +
+    goalCardHtml('Small') +
+    simpleCountCard('SWAG', swagCount, 'no limit');
+
   el.innerHTML = html;
 }
 
