@@ -3,6 +3,18 @@ let _prizes = {};
 let _meta   = { nextId:1, itemTypes:['Book','Bookish item','Clothing','Jewelry','Misc'] };
 let _authors = [];
 
+// Firebase stores prizes at prizes/p_{id}, so dbGet('prizes') returns an
+// object keyed by "p_5" etc. Every local lookup (getPrize, updatePrize, ...)
+// expects _prizes to be keyed by the raw numeric id. Always run raw Firebase
+// prize data through this before assigning to _prizes.
+function normalizePrizes(raw) {
+  const normalized = {};
+  if (!raw || typeof raw !== 'object') return normalized;
+  const items = Array.isArray(raw) ? raw : Object.values(raw);
+  items.forEach(p => { if (p && p.id !== undefined) normalized[p.id] = p; });
+  return normalized;
+}
+
 // ── Load ───────────────────────────────────────────────────────────────────
 async function loadAll() {
   try {
@@ -12,12 +24,7 @@ async function loadAll() {
       loadAuthorsFromHQ()
     ]);
     if (prizes && typeof prizes === 'object') {
-      // Firebase converts integer keys to arrays - normalize to object keyed by id
-      const normalized = {};
-      const items = Array.isArray(prizes) ? prizes : Object.values(prizes);
-      items.forEach(p => {
-        if (p && p.id !== undefined) normalized[p.id] = p;
-      });
+      const normalized = normalizePrizes(prizes);
       if (Object.keys(normalized).length > 0) {
         _prizes = normalized;
       }
@@ -194,11 +201,7 @@ async function doRestore() {
       const count = Object.keys(fbPrizes).length;
       const date = fbTs ? new Date(fbTs).toLocaleDateString() : 'unknown date';
       if (confirm('Restore ' + count + ' prizes from backup on ' + date + '?\n\nThis will overwrite your current prizes. Continue?')) {
-        // Normalize
-        const normalized = {};
-        const items = Array.isArray(fbPrizes) ? fbPrizes : Object.values(fbPrizes);
-        items.forEach(p => { if (p && p.id !== undefined) normalized[p.id] = p; });
-        _prizes = normalized;
+        _prizes = normalizePrizes(fbPrizes);
         if (fbMeta) Object.assign(_meta, fbMeta);
         // Write back to main prizes path
         await dbSet('prizes', Object.fromEntries(
@@ -257,7 +260,7 @@ function startSync(onChange) {
       // Only overwrite local prizes if Firebase actually has data
       // This prevents a failed write from being overwritten by empty Firebase
       if (prizes && Object.keys(prizes).length > 0) {
-        _prizes = prizes;
+        _prizes = normalizePrizes(prizes);
       }
       if (authors && authors.length > 0) _authors = authors;
       onChange();
