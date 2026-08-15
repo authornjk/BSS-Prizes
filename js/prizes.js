@@ -881,17 +881,55 @@ function selectItemType(t, preFill) {
     nameSection =
       '<div class="field"><label>Author</label><input type="text" id="pm-author" value="'+escHtml(authorVal)+'" placeholder="Author name"></div>'+
       '<div class="field"><label>Title of book/series</label><input type="text" id="pm-book-title" value="'+escHtml(titleVal)+'" placeholder="Book or series title"></div>';
+
   } else if (isClothing) {
     var ctype=(pf&&pf.clothingType)||'';
+    var ctypeCustom=(pf&&pf.clothingTypeCustom)||'';
     var csize=(pf&&pf.clothingSize)||'';
+    var csizeCustom=(pf&&pf.clothingSizeCustom)||'';
     var descVal = (pf&&pf.clothingDescription) || ((pf&&pf.id&&!pf.clothingType) ? (pf.name||'') : '');
+    var ctypeResolved = ctype==='Other' ? ctypeCustom : ctype;
+    var ctypeReady = ctype && (ctype!=='Other' || ctypeCustom);
+    var csizeReady = csize && (csize!=='Custom' || csizeCustom);
+
+    // Stage 1: Type of clothing only
+    if (!isEdit && !ctypeReady) {
+      el.innerHTML =
+        '<div class="field"><label>Type of clothing</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+          ['T-shirt','Sweatshirt','Hat','Other'].map(function(ct){
+            return '<button type="button" class="cat-btn'+(ctype===ct?' active':'')+'" onclick="pickClothingType(\''+ct+'\')" id="ctype-'+ct.replace(/[^a-zA-Z]/g,'')+'">'+ct+'</button>';
+          }).join('')+
+        '</div>'+
+        (ctype==='Other'?'<div style="margin-top:6px"><input type="text" id="pm-clothing-type-custom" placeholder="Describe the clothing type" onblur="advanceClothingTypeCustom()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>':'')+
+        '</div>';
+      if (ctype==='Other') setTimeout(function(){ document.getElementById('pm-clothing-type-custom')?.focus(); }, 30);
+      return;
+    }
+    // Stage 2: Size only
+    if (!isEdit && !csizeReady) {
+      el.innerHTML =
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type: <b>'+escHtml(ctypeResolved)+'</b></div>'+
+        '<div class="field"><label>Size</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+          ['XS','S','M','L','XL','XXL','XXXL','One size','Other'].map(function(sz){
+            var val=sz==='Other'?'Custom':sz;
+            return '<button type="button" class="cat-btn'+(csize===val?' active':'')+'" onclick="pickClothingSize(\''+val+'\')" id="csize-'+val.replace(/[^a-zA-Z]/g,'')+'">'+sz+'</button>';
+          }).join('')+
+        '</div>'+
+        (csize==='Custom'?'<div style="margin-top:6px"><input type="text" id="pm-clothing-size-custom" placeholder="Enter size" onblur="advanceClothingSizeCustom()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>':'')+
+        '</div>'+
+        '<input type="hidden" id="pm-clothing-type-hidden" value="'+escHtml(ctype)+'">'+
+        '<input type="hidden" id="pm-clothing-type-custom-hidden" value="'+escHtml(ctypeCustom)+'">';
+      if (csize==='Custom') setTimeout(function(){ document.getElementById('pm-clothing-size-custom')?.focus(); }, 30);
+      return;
+    }
+    // Stage 3: everything, all editable together
     nameSection =
       '<div class="field"><label>Type of clothing</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
         ['T-shirt','Sweatshirt','Hat','Other'].map(function(ct){
           return '<button type="button" class="cat-btn'+(ctype===ct?' active':'')+'" onclick="selectClothingType(\''+ct+'\')" id="ctype-'+ct.replace(/[^a-zA-Z]/g,'')+'">'+ct+'</button>';
         }).join('')+
       '</div><input type="hidden" id="pm-clothing-type" value="'+escHtml(ctype)+'">'+
-      '<div id="clothing-type-other-field" style="display:'+(ctype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-type-custom" value="'+escHtml((pf&&pf.clothingTypeCustom)||'')+'" placeholder="Describe the clothing type"></div>'+
+      '<div id="clothing-type-other-field" style="display:'+(ctype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-type-custom" value="'+escHtml(ctypeCustom)+'" placeholder="Describe the clothing type"></div>'+
       '</div>'+
       '<div class="field"><label>Size</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
         ['XS','S','M','L','XL','XXL','XXXL','One size','Other'].map(function(sz){
@@ -899,23 +937,61 @@ function selectItemType(t, preFill) {
           return '<button type="button" class="cat-btn'+(csize===val?' active':'')+'" onclick="selectClothingSize(\''+val+'\')" id="csize-'+val.replace(/[^a-zA-Z]/g,'')+'">'+sz+'</button>';
         }).join('')+
       '</div><input type="hidden" id="pm-clothing-size" value="'+escHtml(csize)+'">'+
-      '<div id="clothing-size-other-field" style="display:'+(csize==='Custom'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-size-custom" value="'+escHtml((pf&&pf.clothingSizeCustom)||'')+'" placeholder="Enter size"></div>'+
+      '<div id="clothing-size-other-field" style="display:'+(csize==='Custom'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-size-custom" value="'+escHtml(csizeCustom)+'" placeholder="Enter size"></div>'+
       '</div>'+
       '<div class="field"><label>Description</label><input type="text" id="pm-clothing-desc" value="'+escHtml(descVal)+'" placeholder="e.g. navy with gold logo"></div>';
+
   } else if (isBookish) {
     var btype=(pf&&pf.bookishType)||'';
+    var btypeCustom=(pf&&pf.bookishTypeCustom)||'';
     var bdescVal = (pf&&pf.bookishDescription) || ((pf&&pf.id&&!pf.bookishType) ? (pf.name||'') : '');
+    var btypeResolved = btype==='Other' ? btypeCustom : btype;
+    var btypeReady = btype && (btype!=='Other' || btypeCustom);
+
+    // Stage 1: Type only
+    if (!isEdit && !btypeReady) {
+      el.innerHTML =
+        '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+          ['Tote','Annotation tabs','Decor','DIY project','Other'].map(function(bt){
+            return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="pickBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
+          }).join('')+
+        '</div>'+
+        (btype==='Other'?'<div style="margin-top:6px"><input type="text" id="pm-bookish-type-custom" placeholder="Describe the type" onblur="advanceBookishTypeCustom()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>':'')+
+        '</div>';
+      if (btype==='Other') setTimeout(function(){ document.getElementById('pm-bookish-type-custom')?.focus(); }, 30);
+      return;
+    }
+    // Stage 2: Description only
+    if (!isEdit && !bdescVal) {
+      el.innerHTML =
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type: <b>'+escHtml(btypeResolved)+'</b></div>'+
+        '<div class="field"><label>Description</label><input type="text" id="pm-bookish-desc" placeholder="e.g. teal canvas with gold logo" onblur="advanceBookishDesc()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>'+
+        '<input type="hidden" id="pm-bookish-type-hidden" value="'+escHtml(btype)+'">'+
+        '<input type="hidden" id="pm-bookish-type-custom-hidden" value="'+escHtml(btypeCustom)+'">';
+      setTimeout(function(){ document.getElementById('pm-bookish-desc')?.focus(); }, 30);
+      return;
+    }
+    // Stage 3: everything, all editable together
     nameSection =
       '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
         ['Tote','Annotation tabs','Decor','DIY project','Other'].map(function(bt){
           return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="selectBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
         }).join('')+
       '</div><input type="hidden" id="pm-bookish-type" value="'+escHtml(btype)+'">'+
-      '<div id="bookish-type-other-field" style="display:'+(btype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-bookish-type-custom" value="'+escHtml((pf&&pf.bookishTypeCustom)||'')+'" placeholder="Describe the type"></div>'+
+      '<div id="bookish-type-other-field" style="display:'+(btype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-bookish-type-custom" value="'+escHtml(btypeCustom)+'" placeholder="Describe the type"></div>'+
       '</div>'+
       '<div class="field"><label>Description</label><input type="text" id="pm-bookish-desc" value="'+escHtml(bdescVal)+'" placeholder="e.g. teal canvas with gold logo"></div>';
+
   } else {
-    nameSection = '<div class="field"><label>Prize name</label><input type="text" id="pm-name" value="'+escHtml((pf&&pf.name)||'')+'" placeholder="What is the prize?"></div>';
+    // Jewelry, Misc, and any custom item type: single "Prize description"
+    // step, then everything else.
+    var descOnly = (pf&&pf.name)||'';
+    if (!isEdit && !descOnly) {
+      el.innerHTML = '<div class="field"><label>Prize description</label><input type="text" id="pm-name" placeholder="What is the prize?" onblur="advancePrizeDescription()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>';
+      setTimeout(function(){ document.getElementById('pm-name')?.focus(); }, 30);
+      return;
+    }
+    nameSection = '<div class="field"><label>Prize description</label><input type="text" id="pm-name" value="'+escHtml(descOnly)+'" placeholder="What is the prize?"></div>';
   }
 
   var catOptions = '<option value="">— Select category —</option>'+
@@ -974,6 +1050,60 @@ function advanceBookTitle(){
   if(!v) return;
   selectItemType('Book', {author:authorVal, bookTitle:v});
 }
+
+// Clothing staging: tapping a type pill advances immediately; "Other"
+// reveals an inline text field instead (still on the same step) whose
+// blur/Enter is what actually advances.
+function pickClothingType(t){
+  if (t==='Other') { selectItemType('Clothing', {clothingType:'Other'}); return; }
+  selectItemType('Clothing', {clothingType:t});
+}
+function advanceClothingTypeCustom(){
+  var v = document.getElementById('pm-clothing-type-custom')?.value?.trim()||'';
+  if (!v) return;
+  selectItemType('Clothing', {clothingType:'Other', clothingTypeCustom:v});
+}
+function pickClothingSize(v){
+  var ctype = document.getElementById('pm-clothing-type-hidden')?.value||'';
+  var ctypeCustom = document.getElementById('pm-clothing-type-custom-hidden')?.value||'';
+  if (v==='Custom') { selectItemType('Clothing', {clothingType:ctype, clothingTypeCustom:ctypeCustom, clothingSize:'Custom'}); return; }
+  selectItemType('Clothing', {clothingType:ctype, clothingTypeCustom:ctypeCustom, clothingSize:v});
+}
+function advanceClothingSizeCustom(){
+  var ctype = document.getElementById('pm-clothing-type-hidden')?.value||'';
+  var ctypeCustom = document.getElementById('pm-clothing-type-custom-hidden')?.value||'';
+  var v = document.getElementById('pm-clothing-size-custom')?.value?.trim()||'';
+  if (!v) return;
+  selectItemType('Clothing', {clothingType:ctype, clothingTypeCustom:ctypeCustom, clothingSize:'Custom', clothingSizeCustom:v});
+}
+
+// Bookish item staging: same pattern — Type pill advances immediately
+// (or reveals custom text for "Other"), then Description advances on blur/Enter.
+function pickBookishType(t){
+  if (t==='Other') { selectItemType('Bookish item', {bookishType:'Other'}); return; }
+  selectItemType('Bookish item', {bookishType:t});
+}
+function advanceBookishTypeCustom(){
+  var v = document.getElementById('pm-bookish-type-custom')?.value?.trim()||'';
+  if (!v) return;
+  selectItemType('Bookish item', {bookishType:'Other', bookishTypeCustom:v});
+}
+function advanceBookishDesc(){
+  var btype = document.getElementById('pm-bookish-type-hidden')?.value||'';
+  var btypeCustom = document.getElementById('pm-bookish-type-custom-hidden')?.value||'';
+  var v = document.getElementById('pm-bookish-desc')?.value?.trim()||'';
+  if (!v) return;
+  selectItemType('Bookish item', {bookishType:btype, bookishTypeCustom:btypeCustom, bookishDescription:v});
+}
+
+// Jewelry / Misc / any custom item type: single description field, then rest.
+function advancePrizeDescription(){
+  var v = document.getElementById('pm-name')?.value?.trim()||'';
+  if (!v) return;
+  var t = document.getElementById('pm-item-type')?.value||'';
+  selectItemType(t, {name:v});
+}
+
 function selectClothingType(t) {
   ['T-shirt','Sweatshirt','Hat','Other'].forEach(function(x){
     var btn=document.getElementById('ctype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
