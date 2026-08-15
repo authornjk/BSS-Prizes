@@ -140,11 +140,12 @@ function filterPrizes(){
   return _allPrizes.filter(p=>{
     if(!p.donor||!p.needTag) return false;
     if(p.bundledInto) return false;
-    const isBook=!p.itemType||p.itemType==='Book';
-    const isClothing=p.itemType==='Clothing';
-    if(type==='book'&&!isBook) return false;
-    if(type==='clothing'&&!isClothing) return false;
-    if(type==='item'&&(isBook||isClothing)) return false;
+    // donationTagType ('book'/'clothing'/'other') is set per-donation, independent
+    // of itemType — an author can donate clothing, a business can donate a book, etc.
+    const tagType=p.donationTagType||'book';
+    if(type==='book'&&tagType!=='book') return false;
+    if(type==='clothing'&&tagType!=='clothing') return false;
+    if(type==='item'&&tagType!=='other') return false;
     if(status==='unprinted') return !p.tagGenerated;
     return true;
   });
