@@ -203,7 +203,10 @@ async function renderBudgetBar(prizes, el) {
     var raffleLine = arr.find(function(e){ return e && e.id==='raffle'; });
     var prizeBudget  = +(prizeLine?.fixedAmt||0);
     var raffleBudget = +(raffleLine?.fixedAmt||0);
-    var prizeSpent  = prizes.filter(function(p){ return p.cat!=='Raffle'; }).reduce(function(s,p){ return s+(+p.paid||0); }, 0);
+    // "Prizes" total = BINGO + Medium + Small + Uncategorized only.
+    // Raffle and SWAG Bag are tracked separately and excluded here.
+    var PRIZE_BUDGET_CATS = ['BINGO','Medium','Small','Uncategorized'];
+    var prizeSpent  = prizes.filter(function(p){ return PRIZE_BUDGET_CATS.indexOf(p.cat)!==-1; }).reduce(function(s,p){ return s+(+p.paid||0); }, 0);
     var raffleSpent = prizes.filter(function(p){ return p.cat==='Raffle'; }).reduce(function(s,p){ return s+(+p.paid||0); }, 0);
     var html = '';
     if (prizeBudget  > 0) html += budgetRow('Prizes',  prizeBudget,  prizeSpent);
