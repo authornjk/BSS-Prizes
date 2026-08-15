@@ -150,28 +150,28 @@ function renderGoals() {
     var notes = getGoalNotes(cat);
     var goalDisplay = isAuto
       ? String(goal)
-      : '<input type="number" value="'+goal+'" min="0" style="width:36px;font-size:12px;border:none;border-bottom:1px solid var(--border2);background:transparent;color:var(--text);text-align:center;padding:0" onblur="saveGoal(\''+cat+'\',this.value);renderGoals()" onkeydown="if(event.key===\'Enter\')this.blur()" onclick="event.stopPropagation()">';
+      : '<input type="number" value="'+goal+'" min="0" style="width:32px;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border2);background:transparent;color:var(--text);text-align:center;padding:0" onblur="saveGoal(\''+cat+'\',this.value);renderGoals()" onkeydown="if(event.key===\'Enter\')this.blur()" onclick="event.stopPropagation()">';
     var footer = '';
     if (isAuto) {
-      footer = '<div style="font-size:9px;color:var(--text3)">attendees+10</div>';
+      footer = '<div style="font-size:8px;color:var(--text3)">attendees+10</div>';
     } else if (isList) {
-      footer = '<button onclick="openGoalPrizeList(\''+cat+'\')" style="background:var(--purple-bg);border:.5px solid var(--purple);cursor:pointer;color:var(--purple-text);padding:2px 6px;margin-top:3px;font-size:10px;border-radius:8px;font-family:inherit"><i class="ti ti-list" style="font-size:10px"></i> Edit list</button>';
+      footer = '<button onclick="openGoalPrizeList(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--purple-text);padding:2px;margin-top:1px" title="Edit list"><i class="ti ti-pencil" style="font-size:11px"></i></button>';
     } else {
-      footer = '<button onclick="openGoalNotes(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;margin-top:2px"><i class="ti ti-pencil" style="font-size:11px"></i></button>'+
+      footer = '<button onclick="openGoalNotes(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;margin-top:1px" title="Notes"><i class="ti ti-pencil" style="font-size:11px"></i></button>'+
         (notes?'<div style="font-size:9px;color:var(--text3);margin-top:2px;text-align:left;word-break:break-word">'+escHtml(notes.substring(0,50))+(notes.length>50?'\u2026':'')+'</div>':'');
     }
     html += '<div class="goal-card" style="border-color:var(--'+cls+')">'+
-      '<div style="font-size:11px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
-      '<div style="display:flex;align-items:baseline;gap:3px;margin:4px 0">'+
-        '<span style="font-size:18px;font-weight:700;color:var(--'+cls+')">'+have+'</span>'+
-        '<span style="font-size:12px;color:var(--text3)">/ '+goalDisplay+'</span>'+
+      '<div style="font-size:10px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
+      '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;margin:2px 0">'+
+        '<span style="font-size:14px;font-weight:600;color:var(--text)">'+have+'</span>'+
+        '<span style="font-size:14px;font-weight:600;color:var(--text)">/ '+goalDisplay+'</span>'+
       '</div>'+
-      '<div style="font-size:10px;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
+      '<div style="font-size:12px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
       footer+
     '</div>';
   });
   var swagCount = prizes.filter(function(p){ return p.cat==='SWAG Bag'; }).length;
-  html += '<div class="goal-card"><div style="font-size:11px;font-weight:600;color:var(--text2)">SWAG Bag</div><div style="font-size:22px;font-weight:700;margin:4px 0">'+swagCount+'</div><div style="font-size:10px;color:var(--text3)">no limit</div></div>';
+  html += '<div class="goal-card"><div style="font-size:10px;font-weight:600;color:var(--text2)">SWAG Bag</div><div style="font-size:14px;font-weight:600;margin:2px 0">'+swagCount+'</div><div style="font-size:9px;color:var(--text3)">no limit</div></div>';
   el.innerHTML = html;
 }
 
