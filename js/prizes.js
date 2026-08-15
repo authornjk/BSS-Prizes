@@ -151,10 +151,10 @@ function stackCard(grp) {
           '<div style="flex:1;min-width:0">'+
             '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">'+
               (sameCat?'<span class="cat-pill cat-'+(cat||'').toLowerCase().replace(/ /g,'-')+'">'+escHtml(cat||'')+'</span>':'<span style="font-size:10px;color:var(--text3)">Mixed categories</span>')+
-              '<span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:8px"><i class="ti ti-stack-2" style="font-size:9px"></i> Stack of '+grp.length+'</span>'+
+              '<span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:8px"><i class="ti ti-stack-2" style="font-size:9px"></i> Stack of '+totalQty+'</span>'+
             '</div>'+
             '<div style="font-size:14px;font-weight:600">'+escHtml(name||'Unnamed prize')+'</div>'+
-            '<div style="font-size:11px;color:var(--text2);margin-top:2px">Total qty '+totalQty+' \u00b7 Tap to '+(isExpanded?'collapse':'see each one')+'</div>'+
+            '<div style="font-size:11px;color:var(--text2);margin-top:2px">Total qty '+totalQty+' \u00b7 Tap to '+(isExpanded?'collapse':'expand')+'</div>'+
           '</div>'+
           '<div style="flex-shrink:0"><i class="ti ti-chevron-'+(isExpanded?'up':'down')+'" style="font-size:14px;color:var(--text3)"></i></div>'+
         '</div>'+
@@ -191,7 +191,11 @@ function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, c
   });
   var individualHtml = groupOrder.map(function(key){
     var grp = groups[key];
-    return grp.length > 1 ? stackCard(grp) : prizeCard(grp[0]);
+    // A "stack" is triggered by either signal: multiple distinct records
+    // sharing this name, OR a single record whose own qty is > 1. Both mean
+    // there's more than one physical unit of this prize to track.
+    var totalQty = grp.reduce(function(s,p){ return s+(+p.qty||1); }, 0);
+    return (grp.length > 1 || totalQty > 1) ? stackCard(grp) : prizeCard(grp[0]);
   }).join('');
 
   var html = bFiltered.map(function(b){ return bundleCard(b); }).join('') +
@@ -218,10 +222,12 @@ function prizeCard(p) {
   var isAnchor   = _bundleAnchor === p.id;
   var isRaffle   = p.cat === 'Raffle';
 
-  // In bundle mode: raffle prizes can't be bundled
+  // Bundle mode: tapping anywhere still selects for the bundle. Otherwise,
+  // the card body itself does nothing — only the corner button opens edit,
+  // so browsing/expanding a stack can't accidentally launch the edit modal.
   var clickFn = _bundleMode
     ? (isBundled || isRaffle ? '' : 'toggleBundleSelect('+p.id+')')
-    : 'openEditPrize('+p.id+')';
+    : '';
 
   // In bundle mode: raffle prizes can't be bundled — dim them to show they're unselectable.
   // Prizes already in a bundle get a light-blue tint (not dimmed) so they stay readable.
@@ -260,7 +266,7 @@ function prizeCard(p) {
     extraPhotos += '</div>';
   }
 
-  return '<div class="prize-card" style="'+opacity+border+bg+'" onclick="'+clickFn+'">'+
+  return '<div class="prize-card" style="'+opacity+border+bg+(_bundleMode?'':'cursor:default;')+'" onclick="'+clickFn+'">'+
     '<div style="display:flex;gap:10px;align-items:flex-start">'+
       checkbox+
       thumbHtml+
@@ -278,7 +284,7 @@ function prizeCard(p) {
           (tagStage?'<span style="font-size:10px;color:var(--green)">'+tagStage+'</span>':'')+
         '</div>'+
       '</div>'+
-      '<div style="flex-shrink:0"><i class="ti ti-chevron-right" style="font-size:14px;color:var(--text3)"></i></div>'+
+      '<div style="flex-shrink:0;padding:4px 2px 4px 8px;cursor:'+(_bundleMode?'default':'pointer')+'" '+(_bundleMode?'':'onclick="event.stopPropagation();openEditPrize('+p.id+')"')+'><i class="ti ti-chevron-right" style="font-size:14px;color:var(--text3)"></i></div>'+
     '</div>'+
     bundleLabel+
     (bundleBtn?'<div style="text-align:right">'+bundleBtn+'</div>':'')+
