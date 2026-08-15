@@ -9,6 +9,7 @@ var _bundleMode    = false;
 var _bundleAnchor  = null;
 var _bundleSelected = new Set();
 var _bundleQty = {}; // prizeId -> how many of its qty go into the in-progress bundle
+var _expandedStacks = new Set(); // names of stacks currently expanded on the main list
 var _currentPrizeId = 0;
 var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
@@ -117,6 +118,59 @@ function reconcileBundleMembership(allPrizes) {
   });
 }
 
+function toggleStackExpand(name) {
+  if (_expandedStacks.has(name)) _expandedStacks.delete(name); else _expandedStacks.add(name);
+  updatePrizeListAndCounts();
+}
+function jsAttrEscape(s){
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');
+}
+
+function stackCard(grp) {
+  var name = grp[0].name||'';
+  var isExpanded = _expandedStacks.has(name);
+  var totalQty = grp.reduce(function(s,p){ return s+(+p.qty||1); }, 0);
+  var cat = grp[0].cat;
+  var sameCat = grp.every(function(p){ return p.cat===cat; });
+  var thumb = null;
+  for (var i=0;i<grp.length;i++){ if (grp[i].photos && grp[i].photos[0]) { thumb = grp[i].photos[0].thumb; break; } }
+
+  var thumbHtml = thumb
+    ? '<img src="'+thumb+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0">'
+    : '<div style="width:60px;height:60px;border-radius:6px;background:var(--bg2);border:.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:20px;color:var(--text3)"></i></div>';
+
+  // Two faint peeking "cards" behind the top one hint there's a stack here
+  // without shouting about it.
+  var header =
+    '<div style="position:relative;margin-bottom:'+(isExpanded?'2px':'8px')+'">'+
+      '<div style="position:absolute;top:7px;left:6px;right:-6px;bottom:-7px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--radius-md);z-index:0"></div>'+
+      '<div style="position:absolute;top:4px;left:3px;right:-3px;bottom:-4px;background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-md);z-index:1"></div>'+
+      '<div class="prize-card" style="position:relative;z-index:2;cursor:pointer" onclick="toggleStackExpand(\''+jsAttrEscape(name)+'\')">'+
+        '<div style="display:flex;gap:10px;align-items:flex-start">'+
+          thumbHtml+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">'+
+              (sameCat?'<span class="cat-pill cat-'+(cat||'').toLowerCase().replace(/ /g,'-')+'">'+escHtml(cat||'')+'</span>':'<span style="font-size:10px;color:var(--text3)">Mixed categories</span>')+
+              '<span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:8px"><i class="ti ti-stack-2" style="font-size:9px"></i> Stack of '+grp.length+'</span>'+
+            '</div>'+
+            '<div style="font-size:14px;font-weight:600">'+escHtml(name||'Unnamed prize')+'</div>'+
+            '<div style="font-size:11px;color:var(--text2);margin-top:2px">Total qty '+totalQty+' \u00b7 Tap to '+(isExpanded?'collapse':'see each one')+'</div>'+
+          '</div>'+
+          '<div style="flex-shrink:0"><i class="ti ti-chevron-'+(isExpanded?'up':'down')+'" style="font-size:14px;color:var(--text3)"></i></div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+  var itemsHtml = '';
+  if (isExpanded) {
+    itemsHtml = '<div style="margin:0 0 10px 12px;padding-left:10px;border-left:2px solid var(--border2);display:flex;flex-direction:column;gap:6px">'+
+      grp.map(function(p){ return prizeCard(p); }).join('')+
+    '</div>';
+  }
+
+  return header + itemsHtml;
+}
+
 function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter, searchTier) {
   var el = document.getElementById('prize-list-inner');
   if (!el) return;
@@ -124,8 +178,24 @@ function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, c
   var bFiltered  = bundles.filter(catFilter);
   var iFiltered  = individual.filter(catFilter).filter(searchFilter).sort(function(a,b){ return searchTier(a)-searchTier(b); });
   var bndFiltered = bundled.filter(catFilter).filter(searchFilter).sort(function(a,b){ return searchTier(a)-searchTier(b); });
+
+  // Group individual (non-bundled) prizes that share the exact same name into
+  // stacks. This naturally re-forms on its own whenever a split-off piece
+  // comes back out of a bundle, since it just re-matches by name — no extra
+  // bookkeeping needed to "remember" that two records used to be one.
+  var groups = {}; var groupOrder = [];
+  iFiltered.forEach(function(p){
+    var key = p.name||'';
+    if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+    groups[key].push(p);
+  });
+  var individualHtml = groupOrder.map(function(key){
+    var grp = groups[key];
+    return grp.length > 1 ? stackCard(grp) : prizeCard(grp[0]);
+  }).join('');
+
   var html = bFiltered.map(function(b){ return bundleCard(b); }).join('') +
-             iFiltered.map(function(p){ return prizeCard(p); }).join('') +
+             individualHtml +
              bndFiltered.map(function(p){ return prizeCard(p); }).join('');
   if (!html) html = '<div style="text-align:center;padding:3rem;color:var(--text3)">No prizes found.</div>';
   el.innerHTML = html;
@@ -321,17 +391,18 @@ function promptBundleQty(p) {
 
 // Splits off a new prize record carrying `qty` units when bundling less than
 // the full quantity on hand, leaving the remainder behind as its own
-// individual prize. Both halves share a splitGroupId so they can find their
-// way back to each other later. Returns the id that should actually be
-// marked bundledInto (the split-off record, or the original if no split
-// was needed because the whole quantity is going in).
+// individual prize with the same name. Because stacking groups individual
+// prizes purely by matching name (see buildPrizeList), the two halves will
+// automatically re-form a stack later if the split-off piece ever comes back
+// out of a bundle — no extra bookkeeping needed. Returns the id that should
+// actually be marked bundledInto (the split-off record, or the original if
+// no split was needed because the whole quantity is going in).
 async function resolvePrizeForBundle(prizeId, qty) {
   var p = getPrize(prizeId);
   if (!p) return null;
   var totalQty = +p.qty || 1;
   if (qty >= totalQty) return prizeId;
 
-  var splitGroupId = p.splitGroupId || p.id;
   var created = await addPrize({
     name: p.name, cat: p.cat, itemType: p.itemType, value: p.value, paid: p.paid,
     qty: qty, loc: p.loc, notes: p.notes,
@@ -340,30 +411,10 @@ async function resolvePrizeForBundle(prizeId, qty) {
     donationTagType: p.donationTagType, author: p.author, bookTitle: p.bookTitle,
     clothingType: p.clothingType, clothingTypeCustom: p.clothingTypeCustom,
     clothingDescription: p.clothingDescription, clothingSize: p.clothingSize, clothingSizeCustom: p.clothingSizeCustom,
-    needTag: p.needTag, photos: p.photos||[],
-    splitGroupId: splitGroupId
+    needTag: p.needTag, photos: p.photos||[]
   });
-  await updatePrize(prizeId, { qty: totalQty - qty, splitGroupId: splitGroupId });
+  await updatePrize(prizeId, { qty: totalQty - qty });
   return created ? created.id : null;
-}
-
-// Looks for another individual (non-bundled) prize sharing this one's
-// splitGroupId — the piece that stayed behind when this one was split off
-// into a bundle — and merges the two back into a single prize with the
-// combined quantity, deleting the now-redundant duplicate record.
-async function mergeSplitSiblingIfPresent(prizeId) {
-  var p = getPrize(prizeId);
-  if (!p || !p.splitGroupId) return false;
-  var sibling = getPrizes().find(function(q){
-    return q.id !== p.id && !q.isBundle && !q.bundledInto && q.splitGroupId === p.splitGroupId;
-  });
-  if (!sibling) return false;
-  var siblingQtyBefore = +sibling.qty || 1;
-  var combinedQty = (+p.qty||1) + siblingQtyBefore;
-  await updatePrize(sibling.id, { qty: combinedQty, splitGroupId: null });
-  await deletePrize(p.id);
-  showToast('Back together — qty '+combinedQty+' now in one prize');
-  return true;
 }
 
 function startBundle(anchorId) {
@@ -503,10 +554,7 @@ async function detachFromBundle(bundleName) {
   if (remaining.length < 2) {
     var br = getPrizes().find(function(q){ return q.isBundle && q.name===bundleName; });
     if (br) {
-      for (var i=0;i<remaining.length;i++) {
-        await updatePrize(remaining[i].id,{bundledInto:null});
-        await mergeSplitSiblingIfPresent(remaining[i].id);
-      }
+      for (var i=0;i<remaining.length;i++) await updatePrize(remaining[i].id,{bundledInto:null});
       await deletePrize(br.id);
       showToast('Bundle disbanded — only 1 item left');
       return true;
@@ -523,8 +571,7 @@ async function confirmRemoveAsIndividual() {
   var bundleName = p.bundledInto;
   await updatePrize(flow.prizeId, {bundledInto: null});
   var disbanded = bundleName ? await detachFromBundle(bundleName) : false;
-  var merged = await mergeSplitSiblingIfPresent(flow.prizeId);
-  if (!disbanded && !merged) showToast('Removed from bundle');
+  if (!disbanded) showToast('Removed from bundle');
 
   renderPrizes(); renderGoals();
   _removeFlow = null;
@@ -683,10 +730,7 @@ async function confirmDeleteBundle(id) {
            bItems.indexOf(+p.id)>-1;
   });
   if (confirm('Delete bundle "'+escHtml(b.name||'')+'"?\n\n'+items.length+' items will return as individual prizes. They will NOT be deleted.')) {
-    for (var i=0;i<items.length;i++) {
-      await updatePrize(items[i].id,{bundledInto:null});
-      await mergeSplitSiblingIfPresent(items[i].id);
-    }
+    for (var i=0;i<items.length;i++) await updatePrize(items[i].id,{bundledInto:null});
     await deletePrize(id);
     closeModal(); showToast('Bundle deleted — items restored'); renderPrizes(); renderGoals();
   }
