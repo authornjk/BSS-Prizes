@@ -867,7 +867,7 @@ function selectItemType(t, preFill) {
     // already exists) skips straight to showing both together.
     if (!isEdit && !authorVal) {
       el.innerHTML = '<div class="field"><label>Author</label><input type="text" id="pm-author" placeholder="Author name" onblur="advanceBookAuthor()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>';
-      setTimeout(function(){ document.getElementById('pm-author')?.focus(); }, 30);
+      document.getElementById('pm-author')?.focus();
       return;
     }
     if (!isEdit && !titleVal) {
@@ -875,7 +875,7 @@ function selectItemType(t, preFill) {
         '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Author: <b>'+escHtml(authorVal)+'</b></div>'+
         '<div class="field"><label>Title of book/series</label><input type="text" id="pm-book-title" placeholder="Book or series title" onblur="advanceBookTitle()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>'+
         '<input type="hidden" id="pm-author-hidden" value="'+escHtml(authorVal)+'">';
-      setTimeout(function(){ document.getElementById('pm-book-title')?.focus(); }, 30);
+      document.getElementById('pm-book-title')?.focus();
       return;
     }
     nameSection =
@@ -902,7 +902,7 @@ function selectItemType(t, preFill) {
         '</div>'+
         (ctype==='Other'?'<div style="margin-top:6px"><input type="text" id="pm-clothing-type-custom" placeholder="Describe the clothing type" onblur="advanceClothingTypeCustom()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>':'')+
         '</div>';
-      if (ctype==='Other') setTimeout(function(){ document.getElementById('pm-clothing-type-custom')?.focus(); }, 30);
+      if (ctype==='Other') document.getElementById('pm-clothing-type-custom')?.focus();
       return;
     }
     // Stage 2: Size only
@@ -919,7 +919,7 @@ function selectItemType(t, preFill) {
         '</div>'+
         '<input type="hidden" id="pm-clothing-type-hidden" value="'+escHtml(ctype)+'">'+
         '<input type="hidden" id="pm-clothing-type-custom-hidden" value="'+escHtml(ctypeCustom)+'">';
-      if (csize==='Custom') setTimeout(function(){ document.getElementById('pm-clothing-size-custom')?.focus(); }, 30);
+      if (csize==='Custom') document.getElementById('pm-clothing-size-custom')?.focus();
       return;
     }
     // Stage 3: Description only
@@ -932,7 +932,7 @@ function selectItemType(t, preFill) {
         '<input type="hidden" id="pm-clothing-type-custom-hidden" value="'+escHtml(ctypeCustom)+'">'+
         '<input type="hidden" id="pm-clothing-size-hidden" value="'+escHtml(csize)+'">'+
         '<input type="hidden" id="pm-clothing-size-custom-hidden" value="'+escHtml(csizeCustom)+'">';
-      setTimeout(function(){ document.getElementById('pm-clothing-desc')?.focus(); }, 30);
+      document.getElementById('pm-clothing-desc')?.focus();
       return;
     }
     // Stage 4: everything, all editable together
@@ -971,7 +971,7 @@ function selectItemType(t, preFill) {
         '</div>'+
         (btype==='Other'?'<div style="margin-top:6px"><input type="text" id="pm-bookish-type-custom" placeholder="Describe the type" onblur="advanceBookishTypeCustom()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>':'')+
         '</div>';
-      if (btype==='Other') setTimeout(function(){ document.getElementById('pm-bookish-type-custom')?.focus(); }, 30);
+      if (btype==='Other') document.getElementById('pm-bookish-type-custom')?.focus();
       return;
     }
     // Stage 2: Description only
@@ -981,7 +981,7 @@ function selectItemType(t, preFill) {
         '<div class="field"><label>Description</label><input type="text" id="pm-bookish-desc" placeholder="e.g. teal canvas with gold logo" onblur="advanceBookishDesc()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>'+
         '<input type="hidden" id="pm-bookish-type-hidden" value="'+escHtml(btype)+'">'+
         '<input type="hidden" id="pm-bookish-type-custom-hidden" value="'+escHtml(btypeCustom)+'">';
-      setTimeout(function(){ document.getElementById('pm-bookish-desc')?.focus(); }, 30);
+      document.getElementById('pm-bookish-desc')?.focus();
       return;
     }
     // Stage 3: everything, all editable together
@@ -1001,7 +1001,7 @@ function selectItemType(t, preFill) {
     var descOnly = (pf&&pf.name)||'';
     if (!isEdit && !descOnly) {
       el.innerHTML = '<div class="field"><label>Prize description</label><input type="text" id="pm-name" placeholder="What is the prize?" onblur="advancePrizeDescription()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>';
-      setTimeout(function(){ document.getElementById('pm-name')?.focus(); }, 30);
+      document.getElementById('pm-name')?.focus();
       return;
     }
     nameSection = '<div class="field"><label>Prize description</label><input type="text" id="pm-name" value="'+escHtml(descOnly)+'" placeholder="What is the prize?"></div>';
