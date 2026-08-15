@@ -8,6 +8,7 @@ var _pendingPhotos = [];
 var _bundleMode    = false;
 var _bundleAnchor  = null;
 var _bundleSelected = new Set();
+var _bundleQty = {}; // prizeId -> how many of its qty go into the in-progress bundle
 var _currentPrizeId = 0;
 var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
@@ -304,7 +305,73 @@ async function viewPhoto(prizeId, idx) {
 }
 
 // ── Bundle building ───────────────────────────────────────────────────────────
+// If a prize has qty > 1, asks how many of those units should go into the
+// bundle, leaving the rest as a separate individual prize. Returns null if
+// the person cancels or enters something invalid.
+function promptBundleQty(p) {
+  var totalQty = +p.qty || 1;
+  if (totalQty <= 1) return 1;
+  var input = prompt('This prize has a quantity of '+totalQty+'. How many do you want to include in this bundle?\n\nThe rest will stay as a separate individual prize.', '1');
+  if (input === null) return null;
+  var n = parseInt(input, 10);
+  if (!n || n < 1) { showToast('Please enter a number between 1 and '+totalQty, 'error'); return null; }
+  if (n > totalQty) n = totalQty;
+  return n;
+}
+
+// Splits off a new prize record carrying `qty` units when bundling less than
+// the full quantity on hand, leaving the remainder behind as its own
+// individual prize. Both halves share a splitGroupId so they can find their
+// way back to each other later. Returns the id that should actually be
+// marked bundledInto (the split-off record, or the original if no split
+// was needed because the whole quantity is going in).
+async function resolvePrizeForBundle(prizeId, qty) {
+  var p = getPrize(prizeId);
+  if (!p) return null;
+  var totalQty = +p.qty || 1;
+  if (qty >= totalQty) return prizeId;
+
+  var splitGroupId = p.splitGroupId || p.id;
+  var created = await addPrize({
+    name: p.name, cat: p.cat, itemType: p.itemType, value: p.value, paid: p.paid,
+    qty: qty, loc: p.loc, notes: p.notes,
+    donorType: p.donorType, donor: p.donor, donorWebsite: p.donorWebsite,
+    donorQRType: p.donorQRType, donorPronoun: p.donorPronoun, donorLogo: p.donorLogo,
+    donationTagType: p.donationTagType, author: p.author, bookTitle: p.bookTitle,
+    clothingType: p.clothingType, clothingTypeCustom: p.clothingTypeCustom,
+    clothingDescription: p.clothingDescription, clothingSize: p.clothingSize, clothingSizeCustom: p.clothingSizeCustom,
+    needTag: p.needTag, photos: p.photos||[],
+    splitGroupId: splitGroupId
+  });
+  await updatePrize(prizeId, { qty: totalQty - qty, splitGroupId: splitGroupId });
+  return created ? created.id : null;
+}
+
+// Looks for another individual (non-bundled) prize sharing this one's
+// splitGroupId — the piece that stayed behind when this one was split off
+// into a bundle — and merges the two back into a single prize with the
+// combined quantity, deleting the now-redundant duplicate record.
+async function mergeSplitSiblingIfPresent(prizeId) {
+  var p = getPrize(prizeId);
+  if (!p || !p.splitGroupId) return false;
+  var sibling = getPrizes().find(function(q){
+    return q.id !== p.id && !q.isBundle && !q.bundledInto && q.splitGroupId === p.splitGroupId;
+  });
+  if (!sibling) return false;
+  var siblingQtyBefore = +sibling.qty || 1;
+  var combinedQty = (+p.qty||1) + siblingQtyBefore;
+  await updatePrize(sibling.id, { qty: combinedQty, splitGroupId: null });
+  await deletePrize(p.id);
+  showToast('Back together — qty '+combinedQty+' now in one prize');
+  return true;
+}
+
 function startBundle(anchorId) {
+  var p = getPrize(anchorId);
+  if (!p) return;
+  var qty = promptBundleQty(p);
+  if (qty === null) return;
+  _bundleQty = {}; _bundleQty[anchorId] = qty;
   _bundleMode = true; _bundleAnchor = anchorId; _bundleSelected = new Set([anchorId]);
   renderPrizes(); window.scrollTo(0,0);
 }
@@ -317,11 +384,15 @@ function toggleBundleSelect(id) {
     showToast('This prize is already in a bundle', 'error');
     return;
   }
-  if (_bundleSelected.has(id)) { _bundleSelected.delete(id); } else { _bundleSelected.add(id); }
+  if (_bundleSelected.has(id)) { _bundleSelected.delete(id); delete _bundleQty[id]; renderPrizes(); return; }
+  var qty = promptBundleQty(p);
+  if (qty === null) return;
+  _bundleQty[id] = qty;
+  _bundleSelected.add(id);
   renderPrizes();
 }
 function cancelBundle() {
-  _bundleMode = false; _bundleAnchor = null; _bundleSelected = new Set(); renderPrizes();
+  _bundleMode = false; _bundleAnchor = null; _bundleSelected = new Set(); _bundleQty = {}; renderPrizes();
 }
 function finishBundle() {
   if (_bundleSelected.size < 2) { showToast('Select at least 2 prizes to bundle','error'); return; }
@@ -353,22 +424,32 @@ async function createBundle() {
   var name = document.getElementById('bundle-name')?.value?.trim();
   if (!name) { showToast('Please enter a bundle name','error'); return; }
   var cat = document.getElementById('bundle-cat')?.value || 'BINGO';
-  var sel = Array.from(_bundleSelected).map(function(id){return getPrize(id);}).filter(Boolean);
+
+  // Resolve each selected prize to the id that actually goes in the bundle,
+  // splitting off a new record first if only part of its quantity is included.
+  var resolvedIds = [];
+  for (var id of _bundleSelected) {
+    var bundleQty = _bundleQty[id] || 1;
+    var resolvedId = await resolvePrizeForBundle(id, bundleQty);
+    if (resolvedId) resolvedIds.push(resolvedId);
+  }
+
+  var sel = resolvedIds.map(function(id){return getPrize(id);}).filter(Boolean);
   var allThumbs = []; sel.forEach(function(p){(p.photos||[]).forEach(function(ph){if(allThumbs.length<4)allThumbs.push(ph);});});
-  await addPrize({name:name,cat:cat,isBundle:true,bundleItems:Array.from(_bundleSelected),
+  await addPrize({name:name,cat:cat,isBundle:true,bundleItems:resolvedIds,
     value:sel.reduce(function(s,p){return s+(+p.value||0);},0),
     paid:sel.reduce(function(s,p){return s+(+p.paid||0);},0),
     itemType:'Bundle',photos:allThumbs,qty:1,_expanded:false,
     notes:'Bundle: '+sel.map(function(p){return p.name;}).join(', ')});
-  for (var id of _bundleSelected) {
-    var p=getPrize(id);
+  for (var rid of resolvedIds) {
+    var p=getPrize(rid);
     // Only bundle prizes that aren't already in another bundle
     if(p && !p.isBundle && !p.bundledInto) {
-      await updatePrize(id, {bundledInto: name});
+      await updatePrize(rid, {bundledInto: name});
     }
   }
   document.getElementById('modal-container').innerHTML='';
-  _bundleMode=false; _bundleAnchor=null; _bundleSelected=new Set();
+  _bundleMode=false; _bundleAnchor=null; _bundleSelected=new Set(); _bundleQty={};
   showToast('Bundle "'+name+'" created!'); renderPrizes(); renderGoals();
 }
 
@@ -422,7 +503,10 @@ async function detachFromBundle(bundleName) {
   if (remaining.length < 2) {
     var br = getPrizes().find(function(q){ return q.isBundle && q.name===bundleName; });
     if (br) {
-      for (var i=0;i<remaining.length;i++) await updatePrize(remaining[i].id,{bundledInto:null});
+      for (var i=0;i<remaining.length;i++) {
+        await updatePrize(remaining[i].id,{bundledInto:null});
+        await mergeSplitSiblingIfPresent(remaining[i].id);
+      }
       await deletePrize(br.id);
       showToast('Bundle disbanded — only 1 item left');
       return true;
@@ -439,7 +523,8 @@ async function confirmRemoveAsIndividual() {
   var bundleName = p.bundledInto;
   await updatePrize(flow.prizeId, {bundledInto: null});
   var disbanded = bundleName ? await detachFromBundle(bundleName) : false;
-  if (!disbanded) showToast('Removed from bundle');
+  var merged = await mergeSplitSiblingIfPresent(flow.prizeId);
+  if (!disbanded && !merged) showToast('Removed from bundle');
 
   renderPrizes(); renderGoals();
   _removeFlow = null;
@@ -575,7 +660,13 @@ async function saveEditBundle(id) {
 async function addToExistingBundle(prizeId, bundleId) {
   var bundle = getPrize(bundleId);
   if (!bundle) return;
-  await updatePrize(prizeId, {bundledInto:bundle.name});
+  var p = getPrize(prizeId);
+  if (!p) return;
+  var qty = promptBundleQty(p);
+  if (qty === null) return;
+  var resolvedId = await resolvePrizeForBundle(prizeId, qty);
+  if (!resolvedId) return;
+  await updatePrize(resolvedId, {bundledInto:bundle.name});
   closeModal(); openEditBundle(bundleId); renderPrizes();
 }
 async function confirmDeleteBundle(id) {
@@ -592,7 +683,10 @@ async function confirmDeleteBundle(id) {
            bItems.indexOf(+p.id)>-1;
   });
   if (confirm('Delete bundle "'+escHtml(b.name||'')+'"?\n\n'+items.length+' items will return as individual prizes. They will NOT be deleted.')) {
-    for (var i=0;i<items.length;i++) await updatePrize(items[i].id,{bundledInto:null});
+    for (var i=0;i<items.length;i++) {
+      await updatePrize(items[i].id,{bundledInto:null});
+      await mergeSplitSiblingIfPresent(items[i].id);
+    }
     await deletePrize(id);
     closeModal(); showToast('Bundle deleted — items restored'); renderPrizes(); renderGoals();
   }
