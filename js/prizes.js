@@ -317,7 +317,7 @@ function finishBundle() {
   var mc = document.getElementById('modal-container');
   mc.innerHTML = '';
   var overlay = document.createElement('div');
-  overlay.className = 'modal-overlay'; overlay.onclick = function(e){ if(e.target===overlay){ overlay.remove(); cancelBundle(); } };
+  overlay.className = 'modal-overlay'; // clicking outside no longer closes it — use Cancel/Create bundle
   var box = document.createElement('div'); box.className = 'modal';
   var h3 = document.createElement('h3'); h3.textContent = 'Name this bundle';
   var sub = document.createElement('p'); sub.style.cssText='font-size:12px;color:var(--text2);margin-bottom:12px';
@@ -644,7 +644,7 @@ async function showPrizeModal(p, authors, itemTypes) {
   mc.innerHTML = '';
   var overlay = document.createElement('div');
   overlay.className='modal-overlay'; overlay.id='modal-bg';
-  overlay.onclick=function(e){if(e.target===overlay){_editMode=false;_currentPrizeId=0;closeModal();}};
+  // Clicking outside the modal no longer closes it — must use X, Cancel, or Save.
   var box = document.createElement('div');
   box.className='modal';
   if (prizeId) box.dataset.prizeId = String(prizeId);
