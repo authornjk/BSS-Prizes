@@ -139,6 +139,12 @@ function renderTags() {
         </div>
       </div>`;
     }).join('')}
+    <div style="font-size:13px;font-weight:600;margin:16px 0 8px">Print preview</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      <a href="bookmark-print.html?db=${encodeURIComponent(window.FIREBASE_DB_URL||'')}&type=book" target="_blank" class="btn" style="text-decoration:none"><i class="ti ti-bookmark"></i> Bookmarks</a>
+      <a href="bookmark-print.html?db=${encodeURIComponent(window.FIREBASE_DB_URL||'')}&type=clothing" target="_blank" class="btn" style="text-decoration:none"><i class="ti ti-shirt"></i> Clothing tags</a>
+      <a href="bookmark-print.html?db=${encodeURIComponent(window.FIREBASE_DB_URL||'')}&type=item" target="_blank" class="btn" style="text-decoration:none"><i class="ti ti-tag"></i> Misc Items</a>
+    </div>
     <div style="font-size:13px;font-weight:600;margin:16px 0 8px">Prizes needing tags</div>
     ${prizes.filter(p=>!p.onTote).map(p => `
       <div style="padding:8px 10px;background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:4px;cursor:pointer" onclick="openEditPrize(${p.id})">
