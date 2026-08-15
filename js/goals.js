@@ -38,7 +38,7 @@ function openGoalNotes(cat) {
   mc.innerHTML = '';
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay'; overlay.id = 'modal-bg';
-  overlay.onclick = function(e){ if(e.target===overlay) closeModal(); };
+  // Clicking outside the modal no longer closes it — must use X or Cancel/Save.
   var box = document.createElement('div'); box.className = 'modal';
   var closeBtn = document.createElement('button');
   closeBtn.className = 'modal-close';
@@ -72,7 +72,7 @@ function openGoalPrizeList(cat) {
     mc.innerHTML = '';
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay'; overlay.id = 'modal-bg';
-    overlay.onclick = function(e){ if(e.target===overlay) closeModal(); };
+    // Clicking outside the modal no longer closes it — must use X or Done.
     var box = document.createElement('div'); box.className = 'modal';
     var closeBtn = document.createElement('button');
     closeBtn.className = 'modal-close'; closeBtn.innerHTML = '<i class="ti ti-x"></i>'; closeBtn.onclick = closeModal;
