@@ -18,26 +18,6 @@ function renderPrizes() {
   var el = document.getElementById('prizes-content');
   if (!el) return;
 
-  var allPrizes = getPrizes().filter(function(p){ return p && p.id !== undefined; });
-  var bundles   = allPrizes.filter(function(p){ return p.isBundle; });
-  var individual = allPrizes.filter(function(p){ return !p.isBundle && !p.bundledInto; });
-  var bundled    = allPrizes.filter(function(p){ return !p.isBundle && !!p.bundledInto; });
-
-  // Search filter
-  var searchFilter = function(p){ return true; };
-  if (_searchQ.trim()) {
-    var q = _searchQ.toLowerCase();
-    searchFilter = function(p){
-      return (p.name||'').toLowerCase().includes(q) ||
-             (p.donor||'').toLowerCase().includes(q) ||
-             (p.cat||'').toLowerCase().includes(q) ||
-             (p.notes||'').toLowerCase().includes(q);
-    };
-  }
-
-  // Category filter
-  var catFilter = function(p){ return !_filterCat || p.cat === _filterCat; };
-
   var bundleBar = '';
   if (_bundleMode) {
     bundleBar = '<div style="background:var(--purple-bg);border:.5px solid var(--purple);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px">'+
@@ -52,7 +32,7 @@ function renderPrizes() {
 
   el.innerHTML = bundleBar +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
-      '<div style="font-size:13px;color:var(--text2)">'+individual.length+' prizes · '+bundled.length+' bundled · '+bundles.length+' bundles</div>'+
+      '<div id="prize-counts" style="font-size:13px;color:var(--text2)"></div>'+
       '<button class="btn primary" onclick="openAddPrize()"><i class="ti ti-plus"></i> Add prize</button>'+
     '</div>'+
     '<div style="margin-bottom:8px">'+
@@ -64,6 +44,33 @@ function renderPrizes() {
     '</div>'+
     '<div id="prize-list-inner" style="display:flex;flex-direction:column;gap:8px"></div>'+
     '<div style="height:300px"></div>';
+
+  updatePrizeListAndCounts();
+}
+
+// Rebuilds only the counts text and the prize list itself — does NOT touch
+// the search input or category pills, so it's safe to call on every
+// keystroke without stealing focus away from the search box.
+function updatePrizeListAndCounts() {
+  var allPrizes = getPrizes().filter(function(p){ return p && p.id !== undefined; });
+  var bundles   = allPrizes.filter(function(p){ return p.isBundle; });
+  var individual = allPrizes.filter(function(p){ return !p.isBundle && !p.bundledInto; });
+  var bundled    = allPrizes.filter(function(p){ return !p.isBundle && !!p.bundledInto; });
+
+  var searchFilter = function(p){ return true; };
+  if (_searchQ.trim()) {
+    var q = _searchQ.toLowerCase();
+    searchFilter = function(p){
+      return (p.name||'').toLowerCase().includes(q) ||
+             (p.donor||'').toLowerCase().includes(q) ||
+             (p.cat||'').toLowerCase().includes(q) ||
+             (p.notes||'').toLowerCase().includes(q);
+    };
+  }
+  var catFilter = function(p){ return !_filterCat || p.cat === _filterCat; };
+
+  var countsEl = document.getElementById('prize-counts');
+  if (countsEl) countsEl.textContent = individual.length+' prizes · '+bundled.length+' bundled · '+bundles.length+' bundles';
 
   buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter);
 }
@@ -84,7 +91,7 @@ function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, c
 function debouncePrizeSearch(val) {
   _searchQ = val;
   clearTimeout(_prizeDebounce);
-  _prizeDebounce = setTimeout(renderPrizes, 150);
+  _prizeDebounce = setTimeout(updatePrizeListAndCounts, 150);
 }
 
 // ── Prize card ────────────────────────────────────────────────────────────────
