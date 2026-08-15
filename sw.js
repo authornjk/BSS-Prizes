@@ -1,5 +1,5 @@
-// v20260815u
-const CACHE = 'soiree-prizes-20260815u';
+// v20260815v
+const CACHE = 'soiree-prizes-20260815v';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).then(() => self.clients.claim())
