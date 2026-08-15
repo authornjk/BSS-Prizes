@@ -52,12 +52,13 @@ async function startApp() {
   showTab('prizes');
   setTimeout(() => updateSyncStatus('syncing'), 50);
   await loadAll();
+  await loadGoalsFromFirebase();
   await loadBINGOGoal();
   renderGoals();
   renderPrizes();
   // Lightweight refresh on each poll tick — avoids rebuilding the search
   // input / category pills out from under someone mid-keystroke.
-  startSync(() => { renderGoals(); updatePrizeListAndCounts(); });
+  startSync(() => { refreshGoalsCache().then(renderGoals); updatePrizeListAndCounts(); });
 }
 
 function renderShell() {
