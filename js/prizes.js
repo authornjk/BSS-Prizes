@@ -11,8 +11,15 @@ var _bundleSelected = new Set();
 var _currentPrizeId = 0;
 var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
+var _filterDonations = false; // "Donations" toggle — layers on top of category filter
 
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
+const CAT_LABELS = {'SWAG Bag':'SWAG'}; // display-only relabeling; underlying cat value is unchanged
+
+function toggleDonationsFilter(){
+  _filterDonations = !_filterDonations;
+  renderPrizes();
+}
 
 // ── Render prizes list ────────────────────────────────────────────────────────
 function renderPrizes() {
@@ -41,7 +48,8 @@ function renderPrizes() {
     '</div>'+
     '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
       '<button class="cat-btn'+ (!_filterCat?' active':'')+'" onclick="_filterCat=\'\';renderPrizes()">All</button>'+
-      CATEGORIES.map(function(c){ return '<button class="cat-btn'+(_filterCat===c?' active':'')+'" onclick="_filterCat=\''+c+'\';renderPrizes()">'+c+'</button>'; }).join('')+
+      CATEGORIES.map(function(c){ return '<button class="cat-btn'+(_filterCat===c?' active':'')+'" onclick="_filterCat=\''+c+'\';renderPrizes()">'+(CAT_LABELS[c]||c)+'</button>'; }).join('')+
+      '<button class="cat-btn'+(_filterDonations?' active':'')+'" onclick="toggleDonationsFilter()" style="margin-left:auto;border-color:var(--purple)'+(_filterDonations?';background:var(--purple);color:white':'')+'"><i class="ti ti-gift"></i> Donations</button>'+
     '</div>'+
     '<div id="prize-list-inner" style="display:flex;flex-direction:column;gap:8px"></div>'+
     '<div style="height:300px"></div>';
@@ -72,7 +80,10 @@ function updatePrizeListAndCounts() {
       return (p.name||'').toLowerCase().includes(q) ? 0 : 1;
     };
   }
-  var catFilter = function(p){ return !_filterCat || p.cat === _filterCat; };
+  var catFilter = function(p){
+    if (_filterDonations && !p.donor) return false;
+    return !_filterCat || p.cat === _filterCat;
+  };
 
   var countsEl = document.getElementById('prize-counts');
   if (countsEl) countsEl.textContent = individual.length+' prizes · '+bundled.length+' bundled · '+bundles.length+' bundles';
@@ -692,6 +703,7 @@ async function showPrizeModal(p, authors, itemTypes) {
       var qt=document.getElementById('pm-qrtype');  if(qt&&p.donorQRType) qt.value=p.donorQRType;
       var pr=document.getElementById('pm-pronoun'); if(pr&&p.donorPronoun)pr.value=p.donorPronoun;
       var lg=document.getElementById('pm-logo');    if(lg&&p.donorLogo)   lg.value=p.donorLogo;
+      if(p.donationTagType) setDonationTagType(p.donationTagType);
     },50);
   }
 }
@@ -728,6 +740,13 @@ function setDonorType(type, preFill) {
     html+='<div class="field"><label>Business name</label><input type="text" id="pm-donor" placeholder="Business name"></div>';
   }
   html+=
+    '<div class="field"><label>Tag type</label><div style="display:flex;gap:6px">'+
+      ['book','clothing','other'].map(function(t){
+        var current=(preFill&&preFill.donationTagType)||'book';
+        var lbl=t==='book'?'Book':t==='clothing'?'Clothing':'Other';
+        return '<button type="button" class="cat-btn'+(current===t?' active':'')+'" onclick="setDonationTagType(\''+t+'\')" id="dtag-btn-'+t+'">'+lbl+'</button>';
+      }).join('')+
+    '</div><input type="hidden" id="pm-donation-tag-type" value="'+((preFill&&preFill.donationTagType)||'book')+'"></div>'+
     '<div class="field"><label>Donor website (for QR code)</label><input type="text" id="pm-website" placeholder="https://\u2026"></div>'+
     '<div class="field"><label>QR type</label><select id="pm-qrtype"><option value="website">Website</option><option value="instagram">Instagram</option></select></div>'+
     '<div class="field"><label>Pronoun</label><select id="pm-pronoun"><option value="their">their</option><option value="her">her</option><option value="his">his</option></select></div>'+
@@ -741,6 +760,12 @@ function setDonorType(type, preFill) {
     '</div>';
   el.innerHTML=html;
   el.dataset.donorType=type;
+}
+function setDonationTagType(t){
+  ['book','clothing','other'].forEach(function(x){
+    var btn=document.getElementById('dtag-btn-'+x); if(btn)btn.classList.toggle('active',x===t);
+  });
+  var inp=document.getElementById('pm-donation-tag-type'); if(inp)inp.value=t;
 }
 function toggleOtherAuthor(val){
   var f=document.getElementById('other-author-field'); if(f)f.style.display=val==='__other__'?'block':'none';
@@ -800,7 +825,7 @@ function getDonorFields(){
   var el=document.getElementById('donor-fields');
   if(!el)return{donorType:'none'};
   var type=el.dataset.donorType||'none';
-  if(type==='none')return{donorType:'none',donor:'',donorWebsite:'',donorQRType:'website',donorPronoun:'their',donorLogo:''};
+  if(type==='none')return{donorType:'none',donor:'',donorWebsite:'',donorQRType:'website',donorPronoun:'their',donorLogo:'',donationTagType:''};
   var donor=document.getElementById('pm-donor')?.value||'';
   if(donor==='__other__')donor=document.getElementById('pm-other-author')?.value?.trim()||'';
   return{donorType:type,donor:donor,
@@ -808,6 +833,7 @@ function getDonorFields(){
     donorQRType:document.getElementById('pm-qrtype')?.value||'website',
     donorPronoun:document.getElementById('pm-pronoun')?.value||'their',
     donorLogo:document.getElementById('pm-logo')?.value?.trim()||'',
+    donationTagType:document.getElementById('pm-donation-tag-type')?.value||'book',
     needTag:!!donor.trim()};
 }
 
