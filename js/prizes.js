@@ -1014,7 +1014,7 @@ function selectItemType(t, preFill) {
 
   el.innerHTML =
     nameSection+
-    '<div class="field"><label>Category</label><select id="pm-cat">'+catOptions+'</select></div>'+
+    '<div class="field"><label>Category</label><select id="pm-cat" onchange="document.getElementById(\'pm-value\')?.focus()">'+catOptions+'</select></div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+
       '<div class="field"><label>Value ($)</label><input type="text" inputmode="decimal" id="pm-value" value="'+((pf&&pf.value)||'')+'" placeholder="0.00"></div>'+
       '<div class="field"><label>Amount paid ($)</label><input type="text" inputmode="decimal" id="pm-paid" value="'+((pf&&pf.paid)||'')+'" placeholder="0.00"></div>'+
