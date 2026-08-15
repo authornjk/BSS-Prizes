@@ -92,7 +92,7 @@ function renderShell() {
 
     <nav class="tab-bar">
       <button class="tab-btn active" onclick="showTab('prizes')"><i class="ti ti-gift"></i>Prizes</button>
-      ${admin ? '<button class="tab-btn" onclick="showTab(\'tags\')"><i class="ti ti-tag"></i>Tags</button>' : ''}
+      <button class="tab-btn" onclick="showTab('tags')"><i class="ti ti-tag"></i>Tags</button>
       ${admin ? '<button class="tab-btn" onclick="showTab(\'settings\')"><i class="ti ti-settings"></i>Settings</button>' : ''}
     </nav>
     <div id="modal-container"></div>
@@ -100,8 +100,8 @@ function renderShell() {
 }
 
 function showTab(t) {
-  // Prize Coordinator role: Prizes tab only, regardless of what's clicked.
-  if (!isAdmin() && t !== 'prizes') t = 'prizes';
+  // Prize Coordinator role: Prizes and Tags only — no Settings.
+  if (!isAdmin() && t === 'settings') t = 'prizes';
   _activeTab = t;
   ['prizes','tags','settings'].forEach(x => {
     const el = document.getElementById('tab-'+x);
@@ -115,7 +115,6 @@ function showTab(t) {
 }
 
 function renderTags() {
-  if (!isAdmin()) { showTab('prizes'); return; }
   const el = document.getElementById('tab-tags');
   if (!el) return;
   const prizes = getPrizes().filter(p => p.needTag && !p.bundledInto);
