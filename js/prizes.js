@@ -58,13 +58,16 @@ function updatePrizeListAndCounts() {
   var bundled    = allPrizes.filter(function(p){ return !p.isBundle && !!p.bundledInto; });
 
   var searchFilter = function(p){ return true; };
+  var searchTier = function(p){ return 0; };
   if (_searchQ.trim()) {
     var q = _searchQ.toLowerCase();
     searchFilter = function(p){
       return (p.name||'').toLowerCase().includes(q) ||
-             (p.donor||'').toLowerCase().includes(q) ||
-             (p.cat||'').toLowerCase().includes(q) ||
              (p.notes||'').toLowerCase().includes(q);
+    };
+    // Tier 0 = matched in the prize name/description, tier 1 = matched only in notes
+    searchTier = function(p){
+      return (p.name||'').toLowerCase().includes(q) ? 0 : 1;
     };
   }
   var catFilter = function(p){ return !_filterCat || p.cat === _filterCat; };
@@ -72,15 +75,16 @@ function updatePrizeListAndCounts() {
   var countsEl = document.getElementById('prize-counts');
   if (countsEl) countsEl.textContent = individual.length+' prizes · '+bundled.length+' bundled · '+bundles.length+' bundles';
 
-  buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter);
+  buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter, searchTier);
 }
 
-function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter) {
+function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter, searchTier) {
   var el = document.getElementById('prize-list-inner');
   if (!el) return;
+  searchTier = searchTier || function(){ return 0; };
   var bFiltered  = bundles.filter(catFilter);
-  var iFiltered  = individual.filter(catFilter).filter(searchFilter);
-  var bndFiltered = bundled.filter(catFilter).filter(searchFilter);
+  var iFiltered  = individual.filter(catFilter).filter(searchFilter).sort(function(a,b){ return searchTier(a)-searchTier(b); });
+  var bndFiltered = bundled.filter(catFilter).filter(searchFilter).sort(function(a,b){ return searchTier(a)-searchTier(b); });
   var html = bFiltered.map(function(b){ return bundleCard(b); }).join('') +
              iFiltered.map(function(p){ return prizeCard(p); }).join('') +
              bndFiltered.map(function(p){ return prizeCard(p); }).join('');
