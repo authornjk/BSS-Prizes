@@ -165,14 +165,13 @@ function stackCard(grp) {
   if (isExpanded) {
     var rows;
     if (grp.length === 1 && (+grp[0].qty||1) > 1) {
-      // Still a single database record — nothing's been split off yet.
-      // Show it as N separate boxes anyway so it visually matches a real
-      // stack; tapping "Bundle" on any one box splits off exactly that 1
-      // unit when a bundle is actually created.
+      // Still a single database record — nothing's been split off yet. The
+      // collapsed card itself already represents unit #1, so expand only
+      // needs to add the other (qty-1) boxes to reach the full count.
       var rec = grp[0];
       var n = +rec.qty || 1;
       rows = '';
-      for (var u=0; u<n; u++) { rows += virtualUnitCard(rec, u, n); }
+      for (var u=1; u<n; u++) { rows += virtualUnitCard(rec, u, n); }
     } else {
       rows = grp.map(function(p){ return prizeCard(p); }).join('');
     }
