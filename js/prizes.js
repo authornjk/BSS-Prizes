@@ -712,11 +712,29 @@ function selectItemType(t, preFill) {
 
   var nameSection;
   if (isBook) {
+    var authorVal = (pf&&pf.author)||'';
     // Legacy prizes saved before this field existed: fall back to showing
     // the old manually-typed name in Title so it isn't silently lost.
     var titleVal = (pf&&pf.bookTitle) || ((pf&&pf.id&&!pf.author) ? (pf.name||'') : '');
+
+    // Add flow only: step through Author, then Title, one at a time —
+    // nothing else on screen until both are filled in. Edit mode (data
+    // already exists) skips straight to showing both together.
+    if (!isEdit && !authorVal) {
+      el.innerHTML = '<div class="field"><label>Author</label><input type="text" id="pm-author" placeholder="Author name" onblur="advanceBookAuthor()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>';
+      setTimeout(function(){ document.getElementById('pm-author')?.focus(); }, 30);
+      return;
+    }
+    if (!isEdit && !titleVal) {
+      el.innerHTML =
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Author: <b>'+escHtml(authorVal)+'</b></div>'+
+        '<div class="field"><label>Title of book/series</label><input type="text" id="pm-book-title" placeholder="Book or series title" onblur="advanceBookTitle()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>'+
+        '<input type="hidden" id="pm-author-hidden" value="'+escHtml(authorVal)+'">';
+      setTimeout(function(){ document.getElementById('pm-book-title')?.focus(); }, 30);
+      return;
+    }
     nameSection =
-      '<div class="field"><label>Author</label><input type="text" id="pm-author" value="'+escHtml((pf&&pf.author)||'')+'" placeholder="Author name"></div>'+
+      '<div class="field"><label>Author</label><input type="text" id="pm-author" value="'+escHtml(authorVal)+'" placeholder="Author name"></div>'+
       '<div class="field"><label>Title of book/series</label><input type="text" id="pm-book-title" value="'+escHtml(titleVal)+'" placeholder="Book or series title"></div>';
   } else if (isClothing) {
     var ctype=(pf&&pf.clothingType)||'';
@@ -788,6 +806,17 @@ function selectItemType(t, preFill) {
   }
 }
 
+function advanceBookAuthor(){
+  var v = document.getElementById('pm-author')?.value?.trim()||'';
+  if(!v) return; // stay put until they actually enter something
+  selectItemType('Book', {author:v});
+}
+function advanceBookTitle(){
+  var authorVal = document.getElementById('pm-author-hidden')?.value||'';
+  var v = document.getElementById('pm-book-title')?.value?.trim()||'';
+  if(!v) return;
+  selectItemType('Book', {author:authorVal, bookTitle:v});
+}
 function selectClothingType(t) {
   ['T-shirt','Sweatshirt','Other'].forEach(function(x){
     var btn=document.getElementById('ctype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
