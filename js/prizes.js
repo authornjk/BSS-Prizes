@@ -164,7 +164,7 @@ function prizeCard(p) {
         '<div style="font-size:14px;font-weight:600">'+escHtml(p.name||'Unnamed prize')+'</div>'+
         (p.donor?'<div style="font-size:11px;color:var(--purple-text);margin-top:2px"><i class="ti ti-user" style="font-size:10px"></i> '+escHtml(p.donor)+'</div>':'')+
         '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">'+
-          (p.value?'<span style="font-size:11px;color:var(--text2)">Est '+fmt$(p.value)+'</span>':'')+
+          (p.value?'<span style="font-size:11px;color:var(--text2)">Value '+fmt$(p.value)+'</span>':'')+
           (p.paid?'<span style="font-size:11px;color:var(--amber)">Paid '+fmt$(p.paid)+'</span>':'')+
           (p.qty>1?'<span style="font-size:11px;color:var(--text2)">x'+p.qty+'</span>':'')+
           (tagStage?'<span style="font-size:10px;color:var(--green)">'+tagStage+'</span>':'')+
@@ -230,7 +230,7 @@ function bundleCard(b) {
           '<span style="font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:1px 6px;border-radius:8px"><i class="ti ti-packages" style="font-size:9px"></i> Bundle</span>'+
         '</div>'+
         '<div style="font-size:14px;font-weight:700">'+escHtml(b.name||'Bundle')+'</div>'+
-        '<div style="font-size:11px;color:var(--text2);margin-top:2px">'+items.length+' items'+(totalValue?' · Est '+fmt$(totalValue):'')+'</div>'+
+        '<div style="font-size:11px;color:var(--text2);margin-top:2px">'+items.length+' items'+(totalValue?' · Value '+fmt$(totalValue):'')+'</div>'+
         '<div style="font-size:11px;color:var(--text3)">Tap to '+(isExpanded?'collapse':'expand')+'</div>'+
       '</div>'+
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'+
@@ -630,7 +630,7 @@ async function showPrizeModal(p, authors, itemTypes) {
     '<div class="field"><label>Category</label><select id="pm-cat">'+catOptions+'</select></div>'+
     '<div class="field"><label>Item type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+typeBtns+'</div><input type="hidden" id="pm-item-type" value="'+escHtml((p&&p.itemType)||'Misc')+'"></div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+
-      '<div class="field"><label>Est value ($)</label><input type="text" inputmode="decimal" id="pm-value" value="'+((p&&p.value)||'')+'" placeholder="0.00"></div>'+
+      '<div class="field"><label>Value ($)</label><input type="text" inputmode="decimal" id="pm-value" value="'+((p&&p.value)||'')+'" placeholder="0.00"></div>'+
       '<div class="field"><label>Amount paid ($)</label><input type="text" inputmode="decimal" id="pm-paid" value="'+((p&&p.paid)||'')+'" placeholder="0.00"></div>'+
       '<div class="field"><label>Qty</label><input type="number" id="pm-qty" value="'+((p&&p.qty)||'')+'" placeholder="1" min="1"></div>'+
       '<div class="field"><label>Location</label><input type="text" id="pm-loc" value="'+escHtml((p&&p.loc)||'')+'" placeholder="Where is it?"></div>'+
