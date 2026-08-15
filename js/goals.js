@@ -1,33 +1,83 @@
 // goals.js — goals bar with notes and numbered prize lists
+//
+// This used to be stored purely in localStorage, which never synced to
+// Firebase or across devices/browsers — and could get silently wiped
+// (e.g. Safari clearing storage after inactivity). Now backed by Firebase
+// at hq/prizeGoals, loaded once into _goalsCache at boot via
+// loadGoalsFromFirebase(), with a one-time migration that pushes up
+// whatever's still sitting in this device's localStorage (if Firebase
+// has nothing yet) so any not-yet-lost local data gets rescued.
 var CAT_GOALS_KEY = 'prize_goals';
+var _goalsCache = { targets:{}, notes:{}, lists:{} };
+
+async function loadGoalsFromFirebase() {
+  try {
+    var remote = await dbGet('hq/prizeGoals');
+    if (remote && (remote.targets || remote.notes || remote.lists)) {
+      _goalsCache = {
+        targets: remote.targets || {},
+        notes:   remote.notes   || {},
+        lists:   remote.lists   || {}
+      };
+      return;
+    }
+    // Nothing in Firebase yet — check this device's localStorage for
+    // anything left over from before, and migrate it up so it isn't lost.
+    var localTargets = JSON.parse(localStorage.getItem(CAT_GOALS_KEY)||'{}');
+    var localNotes = {}, localLists = {};
+    ['BINGO','Raffle','Medium','Small'].forEach(function(cat){
+      var n = localStorage.getItem('goal_notes_'+cat);
+      if (n) localNotes[cat] = n;
+      var l = localStorage.getItem('goal_prize_list_'+cat);
+      if (l) { try { localLists[cat] = JSON.parse(l); } catch(e){} }
+    });
+    _goalsCache = { targets: localTargets, notes: localNotes, lists: localLists };
+    if (Object.keys(localTargets).length || Object.keys(localNotes).length || Object.keys(localLists).length) {
+      await dbSet('hq/prizeGoals', _goalsCache);
+      showToast('Recovered goal lists from this device \u2014 now synced');
+    }
+  } catch(e) { console.error('loadGoalsFromFirebase error:', e); }
+}
+function persistGoalsCache() {
+  dbSet('hq/prizeGoals', _goalsCache).catch(function(){});
+}
+// Lighter refresh for the periodic sync poll — no migration logic, just
+// pulls whatever's currently in Firebase so edits from another
+// device/browser show up here too.
+async function refreshGoalsCache() {
+  try {
+    var remote = await dbGet('hq/prizeGoals');
+    if (remote) {
+      _goalsCache = { targets: remote.targets||{}, notes: remote.notes||{}, lists: remote.lists||{} };
+    }
+  } catch(e) {}
+}
 
 function getGoals() {
-  var saved = JSON.parse(localStorage.getItem(CAT_GOALS_KEY)||'{}');
-  return Object.assign({BINGO:185, Raffle:7, Medium:10, Small:10}, saved);
+  return Object.assign({BINGO:185, Raffle:7, Medium:10, Small:10}, _goalsCache.targets);
 }
 function saveGoal(cat, val) {
-  var goals = getGoals();
-  goals[cat] = +val;
-  localStorage.setItem(CAT_GOALS_KEY, JSON.stringify(goals));
+  _goalsCache.targets[cat] = +val;
+  persistGoalsCache();
 }
 async function loadBINGOGoal() {
   try {
     var att = await dbGet('hq/attendance');
     if (att && att.total) {
-      var goals = getGoals();
-      goals.BINGO = (+att.total||175) + 10;
-      localStorage.setItem(CAT_GOALS_KEY, JSON.stringify(goals));
+      _goalsCache.targets.BINGO = (+att.total||175) + 10;
+      persistGoalsCache();
     }
   } catch(e) {}
 }
 function getGoalNotes(cat) {
-  return localStorage.getItem('goal_notes_'+cat)||'';
+  return _goalsCache.notes[cat] || '';
 }
 function getGoalPrizeList(cat) {
-  return JSON.parse(localStorage.getItem('goal_prize_list_'+cat)||'[]');
+  return _goalsCache.lists[cat] || [];
 }
 function saveGoalPrizeList(cat, items) {
-  localStorage.setItem('goal_prize_list_'+cat, JSON.stringify(items));
+  _goalsCache.lists[cat] = items;
+  persistGoalsCache();
   saveGoal(cat, items.length);
 }
 
@@ -56,7 +106,7 @@ function openGoalNotes(cat) {
   var cancelBtn = document.createElement('button'); cancelBtn.className = 'btn'; cancelBtn.textContent = 'Cancel'; cancelBtn.onclick = closeModal;
   var saveBtn = document.createElement('button'); saveBtn.className = 'btn primary';
   saveBtn.innerHTML = '<i class="ti ti-check"></i> Save';
-  saveBtn.onclick = function(){ localStorage.setItem('goal_notes_'+cat, ta.value.trim()); closeModal(); showToast('Notes saved'); renderGoals(); };
+  saveBtn.onclick = function(){ _goalsCache.notes[cat] = ta.value.trim(); persistGoalsCache(); closeModal(); showToast('Notes saved'); renderGoals(); };
   actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
   box.appendChild(closeBtn); box.appendChild(h3); box.appendChild(label); box.appendChild(ta); box.appendChild(actions);
   overlay.appendChild(box); mc.appendChild(overlay);
