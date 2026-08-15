@@ -922,7 +922,20 @@ function selectItemType(t, preFill) {
       if (csize==='Custom') setTimeout(function(){ document.getElementById('pm-clothing-size-custom')?.focus(); }, 30);
       return;
     }
-    // Stage 3: everything, all editable together
+    // Stage 3: Description only
+    if (!isEdit && !descVal) {
+      var csizeResolved = csize==='Custom' ? csizeCustom : csize;
+      el.innerHTML =
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type: <b>'+escHtml(ctypeResolved)+'</b> \u00b7 Size: <b>'+escHtml(csizeResolved)+'</b></div>'+
+        '<div class="field"><label>Description</label><input type="text" id="pm-clothing-desc" placeholder="e.g. navy with gold logo" onblur="advanceClothingDesc()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>'+
+        '<input type="hidden" id="pm-clothing-type-hidden" value="'+escHtml(ctype)+'">'+
+        '<input type="hidden" id="pm-clothing-type-custom-hidden" value="'+escHtml(ctypeCustom)+'">'+
+        '<input type="hidden" id="pm-clothing-size-hidden" value="'+escHtml(csize)+'">'+
+        '<input type="hidden" id="pm-clothing-size-custom-hidden" value="'+escHtml(csizeCustom)+'">';
+      setTimeout(function(){ document.getElementById('pm-clothing-desc')?.focus(); }, 30);
+      return;
+    }
+    // Stage 4: everything, all editable together
     nameSection =
       '<div class="field"><label>Type of clothing</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
         ['T-shirt','Sweatshirt','Hat','Other'].map(function(ct){
@@ -1075,6 +1088,15 @@ function advanceClothingSizeCustom(){
   var v = document.getElementById('pm-clothing-size-custom')?.value?.trim()||'';
   if (!v) return;
   selectItemType('Clothing', {clothingType:ctype, clothingTypeCustom:ctypeCustom, clothingSize:'Custom', clothingSizeCustom:v});
+}
+function advanceClothingDesc(){
+  var ctype = document.getElementById('pm-clothing-type-hidden')?.value||'';
+  var ctypeCustom = document.getElementById('pm-clothing-type-custom-hidden')?.value||'';
+  var csize = document.getElementById('pm-clothing-size-hidden')?.value||'';
+  var csizeCustom = document.getElementById('pm-clothing-size-custom-hidden')?.value||'';
+  var v = document.getElementById('pm-clothing-desc')?.value?.trim()||'';
+  if (!v) return;
+  selectItemType('Clothing', {clothingType:ctype, clothingTypeCustom:ctypeCustom, clothingSize:csize, clothingSizeCustom:csizeCustom, clothingDescription:v});
 }
 
 // Bookish item staging: same pattern — Type pill advances immediately
