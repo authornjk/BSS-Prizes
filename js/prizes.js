@@ -54,6 +54,7 @@ function renderPrizes() {
 // keystroke without stealing focus away from the search box.
 function updatePrizeListAndCounts() {
   var allPrizes = getPrizes().filter(function(p){ return p && p.id !== undefined; });
+  reconcileBundleMembership(allPrizes);
   var bundles   = allPrizes.filter(function(p){ return p.isBundle; });
   var individual = allPrizes.filter(function(p){ return !p.isBundle && !p.bundledInto; });
   var bundled    = allPrizes.filter(function(p){ return !p.isBundle && !!p.bundledInto; });
@@ -77,6 +78,31 @@ function updatePrizeListAndCounts() {
   if (countsEl) countsEl.textContent = individual.length+' prizes · '+bundled.length+' bundled · '+bundles.length+' bundles';
 
   buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter, searchTier);
+}
+
+// A bundle's own bundleItems ID array is the source of truth used by the
+// Edit Bundle modal to decide what's inside it. But the main list decides
+// whether a prize shows as "bundled" purely from that prize's own
+// bundledInto field. If a write gets interrupted (e.g. mid-creation) those
+// two can drift apart — an item shows up correctly inside the bundle's own
+// item list, but still renders as a free-standing individual card on the
+// main list with no blue tint or "Bundled with" label. This reconciles
+// that drift on every render: fixes it in memory immediately, and quietly
+// persists the correction to Firebase so it doesn't keep recurring.
+function reconcileBundleMembership(allPrizes) {
+  var bundles = allPrizes.filter(function(p){ return p.isBundle; });
+  bundles.forEach(function(b){
+    var bItems = b.bundleItems || [];
+    if (!bItems.length) return;
+    bItems.forEach(function(rawId){
+      var id = typeof rawId === 'string' ? parseInt(rawId,10) : rawId;
+      var p = getPrize(id);
+      if (p && !p.isBundle && p.bundledInto !== b.name) {
+        p.bundledInto = b.name; // reflect correctly in this render immediately
+        updatePrize(id, {bundledInto: b.name}).catch(function(){}); // persist the fix
+      }
+    });
+  });
 }
 
 function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, catFilter, searchTier) {
