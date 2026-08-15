@@ -742,7 +742,7 @@ function selectItemType(t, preFill) {
     var descVal = (pf&&pf.clothingDescription) || ((pf&&pf.id&&!pf.clothingType) ? (pf.name||'') : '');
     nameSection =
       '<div class="field"><label>Type of clothing</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        ['T-shirt','Sweatshirt','Other'].map(function(ct){
+        ['T-shirt','Sweatshirt','Hat','Other'].map(function(ct){
           return '<button type="button" class="cat-btn'+(ctype===ct?' active':'')+'" onclick="selectClothingType(\''+ct+'\')" id="ctype-'+ct.replace(/[^a-zA-Z]/g,'')+'">'+ct+'</button>';
         }).join('')+
       '</div><input type="hidden" id="pm-clothing-type" value="'+escHtml(ctype)+'">'+
@@ -818,7 +818,7 @@ function advanceBookTitle(){
   selectItemType('Book', {author:authorVal, bookTitle:v});
 }
 function selectClothingType(t) {
-  ['T-shirt','Sweatshirt','Other'].forEach(function(x){
+  ['T-shirt','Sweatshirt','Hat','Other'].forEach(function(x){
     var btn=document.getElementById('ctype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
   });
   var inp=document.getElementById('pm-clothing-type'); if(inp)inp.value=t;
