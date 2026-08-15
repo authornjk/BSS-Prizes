@@ -19,17 +19,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ── BOOK tag: 2"×5", 4 cols × 2 rows = 8in × 10in table (printer allowance built into @page margin above) ── */
 .page-book{display:grid;grid-template-columns:repeat(4,2in);grid-template-rows:repeat(2,5in);gap:0;background:white;page-break-after:always}
-.bm{width:2in;height:5in;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:white;border:.5px solid #ddd;font-family:Calibri,Carlito,sans-serif}
-.bm-logo{width:100%;height:.55in;display:flex;align-items:center;justify-content:center;border-bottom:.5px solid #eee;flex-shrink:0;overflow:hidden}
+.bm{width:2in;height:5in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;font-family:Calibri,Carlito,sans-serif}
+.bm-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
 .bm-logo img{max-width:100%;max-height:100%;object-fit:contain}
 .bm-logo-ph{font-size:6.5px;color:#aaa;text-align:center;border:1px dashed #ddd;margin:4px;width:calc(100% - 8px);height:calc(100% - 8px);display:flex;align-items:center;justify-content:center;border-radius:3px}
-.bm-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:5px 6px 2px;line-height:1.3;font-weight:500;flex-shrink:0}
-.bm-donor{width:calc(100% - 10px);margin:3px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.55in}
-.bm-donor img{max-width:100%;max-height:.65in;object-fit:contain}
-.bm-donor-name{font-family:'Brittany Signature',cursive;font-size:30px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;padding:3px;width:100%}
-.bm-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:3px 7px;line-height:1.3;flex:1}
-.bm-heart{font-size:15px;text-align:center;padding:2px 0;flex-shrink:0}
-.bm-qr{width:100%;padding:4px 6px 5px;display:flex;align-items:center;gap:5px;flex-shrink:0;border-top:.5px solid #eee}
+.bm-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 6px;line-height:1.3;font-weight:500;flex-shrink:0}
+.bm-donor{width:calc(100% - 10px);margin:0 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.4in}
+.bm-donor img{max-width:100%;max-height:.6in;object-fit:contain}
+.bm-donor-name{font-family:'Brittany Signature',cursive;font-size:19px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;padding:0 3px;width:100%}
+.bm-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 7px;line-height:1.3;flex-shrink:0}
+.bm-heart{font-size:15px;text-align:center;flex-shrink:0}
+.bm-qr{width:100%;padding:0 6px;display:flex;align-items:center;gap:5px;flex-shrink:0}
 .bm-qr-img{width:.5in;height:.5in;flex-shrink:0}
 .bm-qr-img img{width:100%;height:100%}
 .bm-qr-ph{width:.5in;height:.5in;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:6px;color:#aaa;text-align:center;flex-shrink:0}
@@ -40,20 +40,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ── CLOTHING tag: 2.5"×4", 4 cols × 2 rows, landscape orientation ── */
 /* Print in landscape by rotating each tag 90°, laid out as 2 rows of 4 */
 .page-clothing{display:grid;grid-template-columns:repeat(4,2.5in);grid-template-rows:repeat(2,4in);gap:0.02in;background:white;page-break-after:always}
-.ct{width:2.5in;height:4in;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
+.ct{width:2.5in;height:4in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
 .ct-hole{width:.22in;height:.22in;border-radius:50%;border:1.5px solid #888;position:absolute;top:.15in;left:.15in}
-.ct-logo{width:100%;height:.5in;display:flex;align-items:center;justify-content:center;border-bottom:.5px solid #eee;flex-shrink:0;overflow:hidden;margin-top:0}
+.ct-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;margin-top:0}
 .ct-logo img{max-width:90%;max-height:90%;object-fit:contain}
 .ct-logo-ph{font-size:6px;color:#aaa;border:1px dashed #ddd;margin:4px;width:calc(100% - 8px);height:calc(100% - 8px);display:flex;align-items:center;justify-content:center;border-radius:3px}
-.ct-size{font-family:Calibri,Carlito,sans-serif;font-size:11px;font-weight:700;text-align:center;padding:5px 8px 2px;color:#2C2C2C;flex-shrink:0;border-bottom:.5px solid #eee;width:100%}
+.ct-size{font-family:Calibri,Carlito,sans-serif;font-size:11px;font-weight:700;text-align:center;padding:0 8px;color:#2C2C2C;flex-shrink:0;width:100%}
 .ct-size span{font-size:13px;color:#3C3489}
-.ct-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:4px 8px 2px;line-height:1.3;font-weight:500;flex-shrink:0}
-.ct-donor{width:calc(100% - 12px);margin:3px 6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.5in}
+.ct-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.3;font-weight:500;flex-shrink:0}
+.ct-donor{width:calc(100% - 12px);margin:0 6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.4in}
 .ct-donor img{max-width:100%;max-height:.6in;object-fit:contain}
-.ct-donor-name{font-family:'Brittany Signature',cursive;font-size:28px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;width:100%;padding:2px 4px}
-.ct-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:3px 8px;line-height:1.3;flex:1}
-.ct-heart{font-size:13px;text-align:center;padding:1px 0;flex-shrink:0}
-.ct-qr{width:100%;padding:4px 6px;display:flex;align-items:center;gap:4px;flex-shrink:0;border-top:.5px solid #eee}
+.ct-donor-name{font-family:'Brittany Signature',cursive;font-size:19px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;width:100%;padding:0 4px}
+.ct-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.3;flex-shrink:0}
+.ct-heart{font-size:13px;text-align:center;flex-shrink:0}
+.ct-qr{width:100%;padding:0 6px;display:flex;align-items:center;gap:4px;flex-shrink:0}
 .ct-qr-img{width:.45in;height:.45in;flex-shrink:0}
 .ct-qr-img img{width:100%;height:100%}
 .ct-qr-ph{width:.45in;height:.45in;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:5px;color:#aaa;flex-shrink:0}
@@ -62,18 +62,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ── ITEM tag: 2.5"×3", 4 cols × 2 rows ── */
 .page-item{display:grid;grid-template-columns:repeat(4,2.5in);grid-template-rows:repeat(2,3in);gap:0.02in;background:white;page-break-after:always}
-.it{width:2.5in;height:3in;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
+.it{width:2.5in;height:3in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
 .it-hole{width:.2in;height:.2in;border-radius:50%;border:1.5px solid #888;position:absolute;top:.12in;left:.12in}
-.it-logo{width:100%;height:.45in;display:flex;align-items:center;justify-content:center;border-bottom:.5px solid #eee;flex-shrink:0}
+.it-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .it-logo img{max-width:90%;max-height:90%;object-fit:contain}
 .it-logo-ph{font-size:6px;color:#aaa;border:1px dashed #ddd;margin:3px;width:calc(100% - 6px);height:calc(100% - 6px);display:flex;align-items:center;justify-content:center;border-radius:3px}
-.it-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:4px 6px 2px;line-height:1.3;font-weight:500;flex-shrink:0}
-.it-donor{width:calc(100% - 10px);margin:2px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.42in}
+.it-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 6px;line-height:1.3;font-weight:500;flex-shrink:0}
+.it-donor{width:calc(100% - 10px);margin:0 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.4in}
 .it-donor img{max-width:100%;max-height:.5in;object-fit:contain}
-.it-donor-name{font-family:'Brittany Signature',cursive;font-size:24px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;width:100%;padding:2px 3px}
-.it-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:3px 7px;line-height:1.3;flex:1}
+.it-donor-name{font-family:'Brittany Signature',cursive;font-size:17px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;width:100%;padding:0 3px}
+.it-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 7px;line-height:1.3;flex-shrink:0}
 .it-heart{font-size:11px;text-align:center;flex-shrink:0}
-.it-qr{width:100%;padding:3px 5px 4px;display:flex;align-items:center;gap:4px;flex-shrink:0;border-top:.5px solid #eee}
+.it-qr{width:100%;padding:0 5px;display:flex;align-items:center;gap:4px;flex-shrink:0}
 .it-qr-img{width:.4in;height:.4in;flex-shrink:0}
 .it-qr-img img{width:100%;height:100%}
 .it-qr-ph{width:.4in;height:.4in;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:5px;color:#aaa;flex-shrink:0}
@@ -144,16 +144,20 @@ function bookTag(p){
   const logoArea=p.donorLogo
     ?`<div class="bm-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="bm-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="bm-donor"><div class="bm-donor-name">${esc(p.donor)}</div></div>`;
+  // No website on file → no QR to scan, so drop that section entirely and
+  // let the heart become the final item; justify-content:space-evenly on
+  // .bm then automatically re-spreads the remaining 5 sections evenly.
+  const qrSection=qrDest?`<div class="bm-qr">
+      <div class="bm-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
+      <div class="bm-qr-right"><div class="bm-qr-line"></div><div class="bm-qr-lbl">Scan the QR<br>code to visit<br>${esc(pr)} website</div><div class="bm-qr-line"></div></div>
+    </div>`:'';
   return`<div class="bm">
     <div class="bm-logo">${'<!-- LOGO_PLACEHOLDER -->'?`<img src="" id="bm-logo-img" style="max-width:100%;max-height:100%;object-fit:contain" alt="Bookish Summer Soirée 2027">`:''}</div>
     <div class="bm-headline">This book was<br>donated by</div>
     ${logoArea}
     <div class="bm-body">${BODY_TEXT}</div>
     <div class="bm-heart">🩷</div>
-    <div class="bm-qr">
-      ${qrDest?`<div class="bm-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>`:`<div class="bm-qr-ph">QR</div>`}
-      <div class="bm-qr-right"><div class="bm-qr-line"></div><div class="bm-qr-lbl">Scan the QR<br>code to visit<br>${esc(pr)} website</div><div class="bm-qr-line"></div></div>
-    </div>
+    ${qrSection}
   </div>`;
 }
 
@@ -164,6 +168,10 @@ function clothingTag(p){
   const logoArea=p.donorLogo
     ?`<div class="ct-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="ct-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="ct-donor"><div class="ct-donor-name">${esc(p.donor)}</div></div>`;
+  const qrSection=qrDest?`<div class="ct-qr">
+      <div class="ct-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
+      <div class="ct-qr-lbl"><div class="ct-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="ct-qr-line"></div></div>
+    </div>`:'';
   return`<div class="ct">
     <div class="ct-hole"></div>
     <div class="ct-logo"><img src="" class="tag-logo-img" style="max-width:95%;max-height:95%;object-fit:contain" alt="Soirée 2027"></div>
@@ -172,10 +180,7 @@ function clothingTag(p){
     ${logoArea}
     <div class="ct-body">${BODY_TEXT}</div>
     <div class="ct-heart">🩷</div>
-    <div class="ct-qr">
-      ${qrDest?`<div class="ct-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>`:`<div class="ct-qr-ph">QR</div>`}
-      <div class="ct-qr-lbl"><div class="ct-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="ct-qr-line"></div></div>
-    </div>
+    ${qrSection}
   </div>`;
 }
 
@@ -185,6 +190,10 @@ function itemTag(p){
   const logoArea=p.donorLogo
     ?`<div class="it-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="it-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="it-donor"><div class="it-donor-name">${esc(p.donor)}</div></div>`;
+  const qrSection=qrDest?`<div class="it-qr">
+      <div class="it-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
+      <div class="it-qr-lbl"><div class="it-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="it-qr-line"></div></div>
+    </div>`:'';
   return`<div class="it">
     <div class="it-hole"></div>
     <div class="it-logo"><img src="" class="tag-logo-img" style="max-width:95%;max-height:95%;object-fit:contain" alt="Soirée 2027"></div>
@@ -192,10 +201,7 @@ function itemTag(p){
     ${logoArea}
     <div class="it-body">${BODY_TEXT}</div>
     <div class="it-heart">🩷</div>
-    <div class="it-qr">
-      ${qrDest?`<div class="it-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>`:`<div class="it-qr-ph">QR</div>`}
-      <div class="it-qr-lbl"><div class="it-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="it-qr-line"></div></div>
-    </div>
+    ${qrSection}
   </div>`;
 }
 
