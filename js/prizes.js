@@ -32,7 +32,7 @@ function renderPrizes() {
   if (_bundleMode) {
     bundleBar = '<div style="background:var(--purple-bg);border:.5px solid var(--purple);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px">'+
       '<div style="font-size:13px;font-weight:600;color:var(--purple-text);margin-bottom:6px"><i class="ti ti-packages"></i> Building bundle — '+_bundleSelected.size+' items selected</div>'+
-      '<div style="font-size:12px;color:var(--purple-text);margin-bottom:8px">Tap non-Raffle prizes below to add them.</div>'+
+      '<div style="font-size:12px;color:var(--purple-text);margin-bottom:8px">Tap other '+(getPrize(_bundleAnchor)?.cat||'')+' prizes below to add them.</div>'+
       '<div style="display:flex;gap:8px">'+
         '<button class="btn primary" onclick="finishBundle()" style="background:var(--purple);color:white;border-color:var(--purple)"><i class="ti ti-check"></i> Done — Name bundle</button>'+
         '<button class="btn" onclick="cancelBundle()">Cancel</button>'+
@@ -220,31 +220,36 @@ function prizeCard(p) {
   var isBundled  = !!p.bundledInto;
   var isSelected = _bundleSelected.has(p.id);
   var isAnchor   = _bundleAnchor === p.id;
-  var isRaffle   = p.cat === 'Raffle';
+  // Prizes can only be bundled with others in the same category, so once
+  // a bundle is in progress, anything with a different category than the
+  // anchor is off-limits — Raffle can bundle, just only with other Raffle.
+  var anchorPrize   = _bundleMode ? getPrize(_bundleAnchor) : null;
+  var catMismatch   = _bundleMode && anchorPrize && p.cat !== anchorPrize.cat;
 
   // Bundle mode: tapping anywhere still selects for the bundle. Otherwise,
   // the card body itself does nothing — only the corner button opens edit,
   // so browsing/expanding a stack can't accidentally launch the edit modal.
   var clickFn = _bundleMode
-    ? (isBundled || isRaffle ? '' : 'toggleBundleSelect('+p.id+')')
+    ? (isBundled || catMismatch ? '' : 'toggleBundleSelect('+p.id+')')
     : '';
 
-  // In bundle mode: raffle prizes can't be bundled — dim them to show they're unselectable.
-  // Prizes already in a bundle get a light-blue tint (not dimmed) so they stay readable.
-  var opacity = (isRaffle && _bundleMode && !isBundled) ? 'opacity:0.45;' : '';
+  // In bundle mode: category-mismatched prizes can't be bundled with this
+  // one — dim them to show they're unselectable. Prizes already in a
+  // bundle get a light-blue tint (not dimmed) so they stay readable.
+  var opacity = (catMismatch && !isBundled) ? 'opacity:0.45;' : '';
   var border  = (isSelected||isAnchor) ? 'border-color:var(--purple);' : (isBundled ? 'border-color:var(--blue,#3B82F6);' : '');
   var bg      = (isSelected||isAnchor) ? 'background:var(--purple-bg);' : (isBundled ? 'background:var(--blue-bg,#EAF3FF);' : 'background:var(--bg);');
 
   var checkbox = '';
-  if (_bundleMode && !isBundled && !isRaffle) {
+  if (_bundleMode && !isBundled && !catMismatch) {
     var checked = isSelected || isAnchor;
     checkbox = '<div style="width:22px;height:22px;border-radius:50%;border:2px solid '+(checked?'var(--purple)':'var(--border2)')+';background:'+(checked?'var(--purple)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(checked?'<i class="ti ti-check" style="font-size:12px;color:white"></i>':'')+'</div>';
   }
-  if (_bundleMode && isRaffle) {
-    checkbox = '<div style="font-size:9px;color:var(--text3);padding:2px 4px;text-align:center">No<br>bundle</div>';
+  if (_bundleMode && catMismatch && !isBundled) {
+    checkbox = '<div style="font-size:9px;color:var(--text3);padding:2px 4px;text-align:center">Diff.<br>category</div>';
   }
 
-  var bundleBtn = (!_bundleMode && !isBundled && !isRaffle)
+  var bundleBtn = (!_bundleMode && !isBundled)
     ? '<button onclick="event.stopPropagation();startBundle('+p.id+')" style="font-size:10px;padding:2px 7px;border:.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;font-family:inherit;margin-top:4px"><i class="ti ti-packages" style="font-size:10px"></i> Bundle</button>'
     : '';
 
@@ -441,6 +446,13 @@ function toggleBundleSelect(id) {
     showToast('This prize is already in a bundle', 'error');
     return;
   }
+  // Prizes can only be bundled with others in the exact same category —
+  // Raffle only with Raffle, BINGO only with BINGO, and so on.
+  var anchor = getPrize(_bundleAnchor);
+  if (p && anchor && p.cat !== anchor.cat) {
+    showToast('Can only bundle with other '+(anchor.cat||'')+' prizes', 'error');
+    return;
+  }
   if (_bundleSelected.has(id)) { _bundleSelected.delete(id); delete _bundleQty[id]; renderPrizes(); return; }
   var qty = promptBundleQty(p);
   if (qty === null) return;
@@ -453,6 +465,8 @@ function cancelBundle() {
 }
 function finishBundle() {
   if (_bundleSelected.size < 2) { showToast('Select at least 2 prizes to bundle','error'); return; }
+  var anchor = getPrize(_bundleAnchor);
+  var sharedCat = anchor ? anchor.cat : '';
   var mc = document.getElementById('modal-container');
   mc.innerHTML = '';
   var overlay = document.createElement('div');
@@ -465,7 +479,7 @@ function finishBundle() {
   nf.innerHTML='<label>Bundle name</label><input type="text" id="bundle-name" placeholder="e.g. Dream book set" style="width:100%">';
   var cf = document.createElement('div'); cf.className='field';
   cf.innerHTML='<label>Category</label><select id="bundle-cat" style="width:100%">'+
-    CATEGORIES.filter(function(c){return c!=='Raffle';}).map(function(c){return '<option>'+c+'</option>';}).join('')+'</select>';
+    CATEGORIES.map(function(c){return '<option'+(c===sharedCat?' selected':'')+'>'+c+'</option>';}).join('')+'</select>';
   var ac = document.createElement('div'); ac.className='m-actions';
   var cb = document.createElement('button'); cb.className='btn'; cb.textContent='Cancel';
   cb.onclick=function(){overlay.remove();cancelBundle();};
@@ -667,7 +681,7 @@ function openEditBundle(id, overrides) {
   });
   var itemIds = new Set(items.map(function(p){return p.id;}));
   var avail = getPrizes().filter(function(p){
-    return !p.isBundle && !p.bundledInto && p.cat!=='Raffle' && !itemIds.has(p.id);
+    return !p.isBundle && !p.bundledInto && p.cat===b.cat && !itemIds.has(p.id);
   });
   var nameVal = overrides.name !== undefined ? overrides.name : (b.name||'');
   var catVal  = overrides.cat  !== undefined ? overrides.cat  : (b.cat||'');
@@ -675,7 +689,7 @@ function openEditBundle(id, overrides) {
     '<h3>Edit bundle</h3>'+
     '<div class="field"><label>Bundle name</label><input type="text" id="eb-name" value="'+escHtml(nameVal)+'" style="width:100%"></div>'+
     '<div class="field"><label>Category</label><select id="eb-cat" style="width:100%">'+
-      CATEGORIES.filter(function(c){return c!=='Raffle';}).map(function(c){return '<option'+(catVal===c?' selected':'')+'>'+c+'</option>';}).join('')+
+      CATEGORIES.map(function(c){return '<option'+(catVal===c?' selected':'')+'>'+c+'</option>';}).join('')+
     '</select></div>'+
     '<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">In bundle ('+items.length+')</div>'+
     '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">'+
@@ -715,6 +729,10 @@ async function addToExistingBundle(prizeId, bundleId) {
   if (!bundle) return;
   var p = getPrize(prizeId);
   if (!p) return;
+  if (p.cat !== bundle.cat) {
+    showToast('Can only bundle with other '+(bundle.cat||'')+' prizes', 'error');
+    return;
+  }
   var qty = promptBundleQty(p);
   if (qty === null) return;
   var resolvedId = await resolvePrizeForBundle(prizeId, qty);
