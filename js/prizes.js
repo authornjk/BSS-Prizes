@@ -202,7 +202,7 @@ function prizeCard(p) {
         (p.donor?'<div style="font-size:11px;color:var(--purple-text);margin-top:2px"><i class="ti ti-user" style="font-size:10px"></i> '+escHtml(p.donor)+'</div>':'')+
         '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">'+
           (p.value?'<span style="font-size:11px;color:var(--text2)">Value '+fmt$(p.value)+'</span>':'')+
-          (p.paid?'<span style="font-size:11px;color:var(--amber)">Paid '+fmt$(p.paid)+'</span>':'')+
+          '<span style="font-size:11px;color:var(--amber)">Paid '+fmt$(p.paid)+'</span>'+
           (p.qty>1?'<span style="font-size:11px;color:var(--text2)">x'+p.qty+'</span>':'')+
           (tagStage?'<span style="font-size:10px;color:var(--green)">'+tagStage+'</span>':'')+
         '</div>'+
