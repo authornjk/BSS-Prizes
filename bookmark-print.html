@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Donation Tags — Print</title>
 <style>
-@page { size: letter portrait; margin: 0.35in; }
+@page { size: letter portrait; margin: 0.5in 0.25in; }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f0f0}
 .controls{background:#3C3489;color:white;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
@@ -13,18 +13,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ctrl-select option{color:#2C2C2C;background:white}
 .btn-print{background:white;color:#3C3489;border:none;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
 .loading{text-align:center;padding:40px;color:#666;font-size:14px}
-.sheet{width:7.8in;margin:20px auto;background:white}
+.sheet{width:fit-content;margin:20px auto;background:white}
 
-/* ── BOOK tag: 2"×5", 4 cols × 2 rows per page ── */
-.page-book{display:grid;grid-template-columns:repeat(4,1.9in);grid-template-rows:repeat(2,5in);gap:0.025in;background:white;page-break-after:always}
-.bm{width:1.9in;height:5in;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:white;border:.5px solid #ddd;font-family:-apple-system,sans-serif}
+/* ── BOOK tag: 2"×5", 4 cols × 2 rows = 8in × 10in table (printer allowance built into @page margin above) ── */
+.page-book{display:grid;grid-template-columns:repeat(4,2in);grid-template-rows:repeat(2,5in);gap:0;background:white;page-break-after:always}
+.bm{width:2in;height:5in;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:white;border:.5px solid #ddd;font-family:-apple-system,sans-serif}
 .bm-logo{width:100%;height:.55in;display:flex;align-items:center;justify-content:center;border-bottom:.5px solid #eee;flex-shrink:0;overflow:hidden}
 .bm-logo img{max-width:100%;max-height:100%;object-fit:contain}
 .bm-logo-ph{font-size:6.5px;color:#aaa;text-align:center;border:1px dashed #ddd;margin:4px;width:calc(100% - 8px);height:calc(100% - 8px);display:flex;align-items:center;justify-content:center;border-radius:3px}
 .bm-headline{font-size:8.5px;color:#1B2A4A;text-align:center;padding:5px 6px 2px;line-height:1.35;font-weight:500;flex-shrink:0}
 .bm-donor{width:calc(100% - 10px);margin:3px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.55in}
 .bm-donor img{max-width:100%;max-height:.65in;object-fit:contain}
-.bm-donor-name{font-size:14px;font-weight:800;color:#E8603C;text-align:center;text-transform:uppercase;letter-spacing:.5px;line-height:1.1;padding:3px;width:100%}
+.bm-donor-name{font-size:13px;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.2;padding:3px;width:100%}
 .bm-body{font-size:7px;color:#1B2A4A;text-align:center;padding:3px 7px;line-height:1.4;flex:1}
 .bm-heart{font-size:15px;text-align:center;padding:2px 0;flex-shrink:0}
 .bm-qr{width:100%;padding:4px 6px 5px;display:flex;align-items:center;gap:5px;flex-shrink:0;border-top:.5px solid #eee}
@@ -48,7 +48,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ct-headline{font-size:8px;color:#1B2A4A;text-align:center;padding:4px 8px 2px;line-height:1.3;font-weight:500;flex-shrink:0}
 .ct-donor{width:calc(100% - 12px);margin:3px 6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.5in}
 .ct-donor img{max-width:100%;max-height:.6in;object-fit:contain}
-.ct-donor-name{font-size:13px;font-weight:800;color:#E8603C;text-align:center;text-transform:uppercase;line-height:1.1;width:100%;padding:2px 4px}
+.ct-donor-name{font-size:13px;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.2;width:100%;padding:2px 4px}
 .ct-body{font-size:6.5px;color:#1B2A4A;text-align:center;padding:3px 8px;line-height:1.35;flex:1}
 .ct-heart{font-size:13px;text-align:center;padding:1px 0;flex-shrink:0}
 .ct-qr{width:100%;padding:4px 6px;display:flex;align-items:center;gap:4px;flex-shrink:0;border-top:.5px solid #eee}
@@ -68,7 +68,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .it-headline{font-size:7.5px;color:#1B2A4A;text-align:center;padding:4px 6px 2px;line-height:1.3;font-weight:500;flex-shrink:0}
 .it-donor{width:calc(100% - 10px);margin:2px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.42in}
 .it-donor img{max-width:100%;max-height:.5in;object-fit:contain}
-.it-donor-name{font-size:12px;font-weight:800;color:#E8603C;text-align:center;text-transform:uppercase;line-height:1.1;width:100%;padding:2px 3px}
+.it-donor-name{font-size:12px;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.2;width:100%;padding:2px 3px}
 .it-body{font-size:6px;color:#1B2A4A;text-align:center;padding:3px 7px;line-height:1.35;flex:1}
 .it-heart{font-size:11px;text-align:center;flex-shrink:0}
 .it-qr{width:100%;padding:3px 5px 4px;display:flex;align-items:center;gap:4px;flex-shrink:0;border-top:.5px solid #eee}
@@ -114,7 +114,7 @@ const BODY_TEXT=(pronoun)=>`Donations like this make it possible for us to provi
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function qr(url){return`https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(url||'https://example.com')}&choe=UTF-8`;}
 function donorSection(p,nameClass,imgClass){
-  if(p.donorLogoUrl) return`<div class="${nameClass.replace('name','')}" style="width:calc(100% - 10px);margin:3px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.5in"><img src="${esc(p.donorLogoUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="${nameClass}" style="display:none">${esc(p.donor)}</div></div>`;
+  if(p.donorLogo) return`<div class="${nameClass.replace('name','')}" style="width:calc(100% - 10px);margin:3px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.5in"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="${nameClass}" style="display:none">${esc(p.donor)}</div></div>`;
   return`<div class="${nameClass}">${esc(p.donor)}</div>`;
 }
 
@@ -139,11 +139,11 @@ function filterPrizes(){
 function bookTag(p){
   const pr=p.donorPronoun||'their';
   const hl=p.donorHeadline||'This book was donated by';
-  const qrDest=p.donorQRDest||p.url||'';
+  const qrDest=p.donorWebsite||p.url||'';
   const qrType=p.donorQRType||'website';
   const qrLabel=qrDest?`Scan to visit ${pr} ${qrType==='instagram'?'Instagram':'website'}.`:`Find ${pr} online!`;
-  const logoArea=p.donorLogoUrl
-    ?`<div class="bm-donor"><img src="${esc(p.donorLogoUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="bm-donor-name" style="display:none">${esc(p.donor)}</div></div>`
+  const logoArea=p.donorLogo
+    ?`<div class="bm-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="bm-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="bm-donor"><div class="bm-donor-name">${esc(p.donor)}</div></div>`;
   return`<div class="bm">
     <div class="bm-logo">${'<!-- LOGO_PLACEHOLDER -->'?`<img src="" id="bm-logo-img" style="max-width:100%;max-height:100%;object-fit:contain" alt="Bookish Summer Soirée 2027">`:''}</div>
@@ -153,7 +153,7 @@ function bookTag(p){
     <div class="bm-heart">🩷</div>
     <div class="bm-qr">
       ${qrDest?`<div class="bm-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>`:`<div class="bm-qr-ph">QR</div>`}
-      <div class="bm-qr-right"><div class="bm-qr-line"></div><div class="bm-qr-lbl">${esc(qrLabel)}</div><div class="bm-qr-line"></div></div>
+      <div class="bm-qr-right"><div class="bm-qr-lbl">${esc(qrLabel)}</div><div class="bm-qr-line"></div></div>
     </div>
   </div>`;
 }
@@ -162,10 +162,10 @@ function clothingTag(p){
   const pr=p.donorPronoun||'their';
   const hl=p.donorHeadline||'This clothing was donated by';
   const size=p.clothingSize==='Custom'?(p.clothingSizeCustom||'See tag'):p.clothingSize||'';
-  const qrDest=p.donorQRDest||'';
+  const qrDest=p.donorWebsite||'';
   const qrLabel=qrDest?`Scan to visit ${pr} ${(p.donorQRType||'website')==='instagram'?'Instagram':'website'}.`:`Find ${pr} online!`;
-  const logoArea=p.donorLogoUrl
-    ?`<div class="ct-donor"><img src="${esc(p.donorLogoUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="ct-donor-name" style="display:none">${esc(p.donor)}</div></div>`
+  const logoArea=p.donorLogo
+    ?`<div class="ct-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="ct-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="ct-donor"><div class="ct-donor-name">${esc(p.donor)}</div></div>`;
   return`<div class="ct">
     <div class="ct-hole"></div>
@@ -177,7 +177,7 @@ function clothingTag(p){
     <div class="ct-heart">🩷</div>
     <div class="ct-qr">
       ${qrDest?`<div class="ct-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>`:`<div class="ct-qr-ph">QR</div>`}
-      <div class="ct-qr-lbl"><div class="ct-qr-line"></div>${esc(qrLabel)}<div class="ct-qr-line"></div></div>
+      <div class="ct-qr-lbl">${esc(qrLabel)}<div class="ct-qr-line"></div></div>
     </div>
   </div>`;
 }
@@ -185,10 +185,10 @@ function clothingTag(p){
 function itemTag(p){
   const pr=p.donorPronoun||'their';
   const hl=p.donorHeadline||'This item was donated by';
-  const qrDest=p.donorQRDest||'';
+  const qrDest=p.donorWebsite||'';
   const qrLabel=qrDest?`Scan to visit ${pr} ${(p.donorQRType||'website')==='instagram'?'Instagram':'website'}.`:`Find ${pr} online!`;
-  const logoArea=p.donorLogoUrl
-    ?`<div class="it-donor"><img src="${esc(p.donorLogoUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="it-donor-name" style="display:none">${esc(p.donor)}</div></div>`
+  const logoArea=p.donorLogo
+    ?`<div class="it-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="it-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="it-donor"><div class="it-donor-name">${esc(p.donor)}</div></div>`;
   return`<div class="it">
     <div class="it-hole"></div>
@@ -199,7 +199,7 @@ function itemTag(p){
     <div class="it-heart">🩷</div>
     <div class="it-qr">
       ${qrDest?`<div class="it-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>`:`<div class="it-qr-ph">QR</div>`}
-      <div class="it-qr-lbl"><div class="it-qr-line"></div>${esc(qrLabel)}<div class="it-qr-line"></div></div>
+      <div class="it-qr-lbl">${esc(qrLabel)}<div class="it-qr-line"></div></div>
     </div>
   </div>`;
 }
