@@ -102,7 +102,7 @@ function closeModal() {
   if (typeof _editMode !== 'undefined')       _editMode = false;
   if (typeof _currentPrizeId !== 'undefined') _currentPrizeId = 0;
 }
-function closeModalOutside(e) { if(e.target.id==='modal-bg') closeModal(); }
+function closeModalOutside(e) { /* no-op: clicking outside a modal no longer closes it — use the X or Cancel/Save buttons */ }
 
 async function loadAuthorsFromHQ() {
   try {
