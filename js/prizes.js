@@ -847,6 +847,7 @@ function selectItemType(t, preFill) {
   var isEdit = !!(pf && pf.id);
   var isBook = t==='Book';
   var isClothing = t==='Clothing';
+  var isBookish = t==='Bookish item';
 
   var nameSection;
   if (isBook) {
@@ -895,6 +896,18 @@ function selectItemType(t, preFill) {
       '</div><input type="hidden" id="pm-clothing-size" value="'+escHtml(csize)+'">'+
       '<div id="clothing-size-other-field" style="display:'+(csize==='Custom'?'block':'none')+';margin-top:6px"><input type="text" id="pm-clothing-size-custom" value="'+escHtml((pf&&pf.clothingSizeCustom)||'')+'" placeholder="Enter size"></div>'+
       '</div>';
+  } else if (isBookish) {
+    var btype=(pf&&pf.bookishType)||'';
+    var bdescVal = (pf&&pf.bookishDescription) || ((pf&&pf.id&&!pf.bookishType) ? (pf.name||'') : '');
+    nameSection =
+      '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        ['Tote','Annotation tabs','Decor','DIY project','Other'].map(function(bt){
+          return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="selectBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
+        }).join('')+
+      '</div><input type="hidden" id="pm-bookish-type" value="'+escHtml(btype)+'">'+
+      '<div id="bookish-type-other-field" style="display:'+(btype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-bookish-type-custom" value="'+escHtml((pf&&pf.bookishTypeCustom)||'')+'" placeholder="Describe the type"></div>'+
+      '</div>'+
+      '<div class="field"><label>Description</label><input type="text" id="pm-bookish-desc" value="'+escHtml(bdescVal)+'" placeholder="e.g. teal canvas with gold logo"></div>';
   } else {
     nameSection = '<div class="field"><label>Prize name</label><input type="text" id="pm-name" value="'+escHtml((pf&&pf.name)||'')+'" placeholder="What is the prize?"></div>';
   }
@@ -961,6 +974,13 @@ function selectClothingType(t) {
   });
   var inp=document.getElementById('pm-clothing-type'); if(inp)inp.value=t;
   var otherField=document.getElementById('clothing-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
+}
+function selectBookishType(t) {
+  ['Tote','Annotation tabs','Decor','DIY project','Other'].forEach(function(x){
+    var btn=document.getElementById('btype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
+  });
+  var inp=document.getElementById('pm-bookish-type'); if(inp)inp.value=t;
+  var otherField=document.getElementById('bookish-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
 }
 function selectClothingSize(v) {
   ['XS','S','M','L','XL','XXL','XXXL','Custom'].forEach(function(x){
@@ -1104,6 +1124,17 @@ function computePrizeNameAndTypeFields(){
       clothingSize:sizeRaw, clothingSizeCustom:sizeCustom
     }, donationTagType:'clothing'};
   }
+  if (itemType==='Bookish item') {
+    var btypeRaw=document.getElementById('pm-bookish-type')?.value||'';
+    var btypeCustom=document.getElementById('pm-bookish-type-custom')?.value?.trim()||'';
+    var btypeResolved = btypeRaw==='Other' ? (btypeCustom||'Other') : btypeRaw;
+    var bdesc=document.getElementById('pm-bookish-desc')?.value?.trim()||'';
+    var bname = (btypeResolved&&bdesc) ? (btypeResolved+': '+bdesc) : '';
+    return {ok:!!(btypeRaw&&bdesc), name:bname, extra:{
+      bookishType:btypeRaw, bookishTypeCustom:btypeCustom,
+      bookishDescription:bdesc
+    }, donationTagType:'other'};
+  }
   var name=document.getElementById('pm-name')?.value?.trim()||'';
   return {ok:!!name, name:name, extra:{}, donationTagType:'other'};
 }
@@ -1111,6 +1142,7 @@ function computePrizeNameAndTypeFields(){
 function prizeValidationMessage(itemType){
   if(itemType==='Book') return 'Please enter both author and title';
   if(itemType==='Clothing') return 'Please fill in clothing type, description, and size';
+  if(itemType==='Bookish item') return 'Please fill in the type and description';
   return 'Please enter a prize name';
 }
 
