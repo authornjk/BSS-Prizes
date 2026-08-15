@@ -895,7 +895,7 @@ function selectItemType(t, preFill) {
       '</div>'+
       '<div class="field"><label>Description</label><input type="text" id="pm-clothing-desc" value="'+escHtml(descVal)+'" placeholder="e.g. navy with gold logo"></div>'+
       '<div class="field"><label>Size</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        ['XS','S','M','L','XL','XXL','XXXL','Other'].map(function(sz){
+        ['XS','S','M','L','XL','XXL','XXXL','OSFA','Other'].map(function(sz){
           var val=sz==='Other'?'Custom':sz;
           return '<button type="button" class="cat-btn'+(csize===val?' active':'')+'" onclick="selectClothingSize(\''+val+'\')" id="csize-'+val+'">'+sz+'</button>';
         }).join('')+
@@ -989,7 +989,7 @@ function selectBookishType(t) {
   var otherField=document.getElementById('bookish-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
 }
 function selectClothingSize(v) {
-  ['XS','S','M','L','XL','XXL','XXXL','Custom'].forEach(function(x){
+  ['XS','S','M','L','XL','XXL','XXXL','OSFA','Custom'].forEach(function(x){
     var btn=document.getElementById('csize-'+x); if(btn)btn.classList.toggle('active',x===v);
   });
   var inp=document.getElementById('pm-clothing-size'); if(inp)inp.value=v;
