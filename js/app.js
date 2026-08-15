@@ -8,6 +8,46 @@ async function boot() {
   localStorage.setItem('soiree_firebase_url', newUrl);
   window.FIREBASE_DB_URL = newUrl;
 
+  const restored = await restoreSession();
+  if (!restored) {
+    renderLogin();
+    return;
+  }
+  await startApp();
+}
+
+function renderLogin() {
+  document.getElementById('root').innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;gap:18px;text-align:center">
+      <div>
+        <div style="font-family:Georgia,serif;font-size:20px;font-weight:500">Bookish Summer Soirée</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">Prize Manager — who's this?</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px">
+        <button class="btn primary" onclick="doLogin('nicole')">Nicole (Admin)</button>
+        <button class="btn" onclick="doLogin('coordinator')">Prize Coordinator</button>
+      </div>
+      <div id="login-error" style="font-size:12px;color:var(--red)"></div>
+    </div>`;
+}
+
+async function doLogin(username) {
+  const res = await login(username);
+  if (!res.ok) {
+    const el = document.getElementById('login-error');
+    if (el) el.textContent = res.error || 'Login failed';
+    return;
+  }
+  await startApp();
+}
+
+function doSignOut() {
+  stopSync();
+  signOut();
+  renderLogin();
+}
+
+async function startApp() {
   renderShell();
   showTab('prizes');
   setTimeout(() => updateSyncStatus('syncing'), 50);
@@ -15,10 +55,14 @@ async function boot() {
   await loadBINGOGoal();
   renderGoals();
   renderPrizes();
-  startSync(() => { renderGoals(); renderPrizes(); });
+  // Lightweight refresh on each poll tick — avoids rebuilding the search
+  // input / category pills out from under someone mid-keystroke.
+  startSync(() => { renderGoals(); updatePrizeListAndCounts(); });
 }
 
 function renderShell() {
+  const user  = currentUser();
+  const admin = isAdmin();
   document.getElementById('root').innerHTML = `
     <div class="shell">
       <div style="padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between">
@@ -28,7 +72,10 @@ function renderShell() {
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div id="sync-status" style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:3px"></div>
-          <div id="user-badge" style="font-size:12px;color:var(--text2)"></div>
+          <div id="user-badge" style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px">
+            ${escHtml(user ? user.displayName : '')}
+            <button onclick="doSignOut()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0;line-height:1" title="Sign out"><i class="ti ti-logout"></i></button>
+          </div>
         </div>
       </div>
 
@@ -45,14 +92,16 @@ function renderShell() {
 
     <nav class="tab-bar">
       <button class="tab-btn active" onclick="showTab('prizes')"><i class="ti ti-gift"></i>Prizes</button>
-      <button class="tab-btn" onclick="showTab('tags')"><i class="ti ti-tag"></i>Tags</button>
-      <button class="tab-btn" onclick="showTab('settings')"><i class="ti ti-settings"></i>Settings</button>
+      ${admin ? '<button class="tab-btn" onclick="showTab(\'tags\')"><i class="ti ti-tag"></i>Tags</button>' : ''}
+      ${admin ? '<button class="tab-btn" onclick="showTab(\'settings\')"><i class="ti ti-settings"></i>Settings</button>' : ''}
     </nav>
     <div id="modal-container"></div>
     <div id="toast" class="toast"></div>`;
 }
 
 function showTab(t) {
+  // Prize Coordinator role: Prizes tab only, regardless of what's clicked.
+  if (!isAdmin() && t !== 'prizes') t = 'prizes';
   _activeTab = t;
   ['prizes','tags','settings'].forEach(x => {
     const el = document.getElementById('tab-'+x);
@@ -66,6 +115,7 @@ function showTab(t) {
 }
 
 function renderTags() {
+  if (!isAdmin()) { showTab('prizes'); return; }
   const el = document.getElementById('tab-tags');
   if (!el) return;
   const prizes = getPrizes().filter(p => p.needTag && !p.bundledInto);
@@ -105,6 +155,7 @@ function renderTags() {
 }
 
 function renderPMSettings() {
+  if (!isAdmin()) { showTab('prizes'); return; }
   const el = document.getElementById('tab-settings');
   if (!el) return;
   el.innerHTML = `
