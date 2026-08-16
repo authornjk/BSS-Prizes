@@ -163,12 +163,12 @@ function stackCard(grp) {
     ? '<img src="'+thumb+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0">'
     : '<div style="width:60px;height:60px;border-radius:6px;background:var(--bg2);border:.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:20px;color:var(--text3)"></i></div>';
 
-  // Two faint peeking "cards" behind the top one hint there's a stack here
-  // without shouting about it.
+  // Two peeking "cards" behind the top one — now more visibly gray with a
+  // soft shadow, so the stack itself reads clearly, not just the badge text.
   var header =
     '<div style="position:relative;margin-bottom:'+(isExpanded?'2px':'8px')+'">'+
-      '<div style="position:absolute;top:7px;left:6px;right:-6px;bottom:-7px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--radius-md);z-index:0"></div>'+
-      '<div style="position:absolute;top:4px;left:3px;right:-3px;bottom:-4px;background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-md);z-index:1"></div>'+
+      '<div style="position:absolute;top:8px;left:7px;right:-7px;bottom:-8px;background:var(--bg3);border:.5px solid var(--border2);border-radius:var(--radius-md);box-shadow:0 2px 4px rgba(0,0,0,.08);z-index:0"></div>'+
+      '<div style="position:absolute;top:4px;left:3px;right:-3px;bottom:-4px;background:var(--bg2);border:.5px solid var(--border2);border-radius:var(--radius-md);box-shadow:0 2px 4px rgba(0,0,0,.06);z-index:1"></div>'+
       '<div class="prize-card" style="position:relative;z-index:2;cursor:pointer" onclick="toggleStackExpand(\''+jsAttrEscape(name)+'\')">'+
         '<div style="display:flex;gap:10px;align-items:flex-start">'+
           thumbHtml+
