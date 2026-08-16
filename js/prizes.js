@@ -1117,8 +1117,12 @@ function selectItemType(t, preFill) {
     nameSection = '<div class="field"><label>Prize description</label><input type="text" id="pm-name" value="'+escHtml(descOnly)+'" placeholder="What is the prize?"></div>';
   }
 
-  var catOptions = '<option value="">— Select category —</option>'+
-    CATEGORIES.map(function(c){return '<option value="'+c+'"'+(pf&&pf.cat===c?' selected':'')+'>'+(CAT_LABELS[c]||c)+'</option>';}).join('');
+  // Default to Uncategorized (not a blank placeholder) so saving is never
+  // silently blocked just because a picker didn't visually pop open —
+  // desktop browsers don't auto-open a <select> the way iOS does, so this
+  // was leaving Category stuck empty on Mac and blocking every save.
+  var defaultCat = (pf&&pf.cat) || 'Uncategorized';
+  var catOptions = CATEGORIES.map(function(c){return '<option value="'+c+'"'+(defaultCat===c?' selected':'')+'>'+(CAT_LABELS[c]||c)+'</option>';}).join('');
 
   var tagHtml = isEdit ? getTagStatusHtml(pf) : '';
 
