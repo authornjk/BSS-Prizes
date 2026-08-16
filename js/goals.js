@@ -209,8 +209,8 @@ function renderGoals() {
   // Unassigned and SWAG, which don't have a target to hit. Just the label
   // and a bare number, nothing else.
   function simpleCountCard(label, count) {
-    return '<div class="goal-card"><div style="font-size:9px;font-weight:600;color:var(--text2)">'+label+'</div>'+
-      '<div style="font-size:14px;font-weight:600;margin-top:1px">'+count+'</div></div>';
+    return '<div class="goal-card"><div style="font-size:10px;color:var(--text2);text-align:center">'+label+'</div>'+
+      '<div style="font-size:15px;font-weight:700;text-align:center;margin-top:2px">'+count+'</div></div>';
   }
 
   function goalCardHtml(cat) {
@@ -222,37 +222,32 @@ function renderGoals() {
     var have = prizes.filter(function(p){ return p.cat===cat; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
     var need = Math.max(0, goal-have);
     var cls  = have>=goal ? 'green' : need<=5 ? 'amber' : 'red';
-    var notes = getGoalNotes(cat);
     // Real visible up/down stepper instead of a native number input — native
     // spinner arrows don't render on mobile Safari, so this stays visible
     // and tappable everywhere.
     var goalDisplay = isAuto
       ? String(goal)
-      : '<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border2);border-radius:8px;padding:0 3px 0 4px">'+
-          '<span style="font-size:13px;font-weight:600;min-width:12px;text-align:center">'+goal+'</span>'+
+      : '<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border2);border-radius:8px;padding:0 3px 0 4px;vertical-align:middle">'+
+          '<span style="font-size:12px;font-weight:600;min-width:11px;text-align:center">'+goal+'</span>'+
           '<span style="display:flex;flex-direction:column">'+
             '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:6px"><i class="ti ti-chevron-up" style="font-size:8px;color:var(--text3)"></i></button>'+
             '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',-1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:6px"><i class="ti ti-chevron-down" style="font-size:8px;color:var(--text3)"></i></button>'+
           '</span>'+
         '</span>';
-    var footer = '';
-    if (isAuto) {
-      footer = '<div style="font-size:7px;color:var(--text3)">attendees+10</div>';
-    } else if (isList) {
-      footer = '<button onclick="openGoalPrizeList(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--purple-text);padding:1px;margin-top:0" title="Edit list"><i class="ti ti-pencil" style="font-size:10px"></i></button>';
-    } else {
-      footer = '<button onclick="openGoalNotes(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:1px;margin-top:0" title="Notes"><i class="ti ti-pencil" style="font-size:10px"></i></button>'+
-        (notes?'<div style="font-size:8px;color:var(--text3);margin-top:1px;text-align:left;word-break:break-word">'+escHtml(notes.substring(0,50))+(notes.length>50?'\u2026':'')+'</div>':'');
-    }
+    // Only Medium/Small get an inline edit-list pencil, sitting right next
+    // to "needed" — matches the reference exactly (Raffle has none).
+    var pencil = isList
+      ? '<button onclick="event.stopPropagation();openGoalPrizeList(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:0;margin-left:3px;flex-shrink:0" title="Edit list"><i class="ti ti-pencil" style="font-size:11px"></i></button>'
+      : '';
     return '<div class="goal-card" style="border-color:var(--'+cls+')">'+
-      '<div style="font-size:9px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
-      '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;margin:1px 0">'+
-        '<span style="font-size:13px;font-weight:600;color:var(--text)">'+have+'</span>'+
-        '<span style="font-size:13px;font-weight:600;color:var(--text)">/</span>'+
-        goalDisplay+
+      '<div style="font-size:11px;color:var(--text2);text-align:center">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:3px">'+
+        '<span style="font-size:12px;color:var(--text2);white-space:nowrap">'+have+'/ '+goalDisplay+'</span>'+
+        '<span style="display:flex;align-items:center">'+
+          '<span style="font-size:13px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</span>'+
+          pencil+
+        '</span>'+
       '</div>'+
-      '<div style="font-size:11px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
-      footer+
     '</div>';
   }
 
