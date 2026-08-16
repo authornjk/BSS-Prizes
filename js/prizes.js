@@ -26,20 +26,35 @@ function toggleDonationsFilter(){
 }
 function setItemTypeFilter(t){
   _filterItemType = t;
+  closeModal();
   renderPrizes();
 }
 // How many prizes of each item type exist right now (counts by quantity,
-// not just record count) — powers the numbers shown in the Item Type
-// dropdown. Bundle wrapper records aren't a "type" a donor filled in, so
-// they're excluded here.
+// not just record count). Always includes every canonical type (Book,
+// Bookish item, Clothing, Jewelry, Misc) even at 0, plus any custom types
+// that have been added, so nothing silently disappears from the list just
+// because it hasn't been used yet. Bundle wrapper records aren't a "type"
+// a donor filled in, so they're excluded here.
 function getItemTypeCounts(){
   var counts = {};
+  getItemTypes().forEach(function(t){ counts[t] = 0; });
   getPrizes().forEach(function(p){
     if (p.isBundle) return;
     var t = p.itemType || 'Misc';
     counts[t] = (counts[t]||0) + (+p.qty||1);
   });
   return counts;
+}
+function openItemTypeFilterMenu(){
+  var counts = getItemTypeCounts();
+  var types = getItemTypes().slice();
+  // Include any custom types already in use that aren't in the canonical list
+  Object.keys(counts).forEach(function(t){ if (types.indexOf(t)===-1) types.push(t); });
+  var rows = '<button class="cat-btn'+(!_filterItemType?' active':'')+'" style="width:100%;text-align:left;margin-bottom:6px" onclick="setItemTypeFilter(\'\')">All types</button>'+
+    types.map(function(t){
+      return '<button class="cat-btn'+(_filterItemType===t?' active':'')+'" style="width:100%;text-align:left;margin-bottom:6px" onclick="setItemTypeFilter(\''+jsAttrEscape(t)+'\')">'+escHtml(t)+' ('+(counts[t]||0)+')</button>';
+    }).join('');
+  showModal('<h3>Filter by Item Type</h3><div style="display:flex;flex-direction:column">'+rows+'</div><div class="m-actions"><button class="btn" onclick="closeModal()">Cancel</button></div>');
 }
 function setSortMode(mode){
   _sortMode = (_sortMode === mode) ? null : mode; // tap again to turn back off
@@ -82,15 +97,7 @@ function renderPrizes() {
     '</div>'+
     '<div style="display:flex;gap:5px;align-items:center;margin-bottom:6px">'+
       '<span style="font-size:11px;color:var(--text3)">Sort:</span>'+
-      '<select onchange="setItemTypeFilter(this.value)" style="font-size:16px;padding:3px 6px;border-radius:14px;border:.5px solid var(--border2);background:var(--bg);color:var(--text)">'+
-        '<option value=""'+(!_filterItemType?' selected':'')+'>Item Type</option>'+
-        (function(){
-          var counts = getItemTypeCounts();
-          return Object.keys(counts).sort().map(function(t){
-            return '<option value="'+escHtml(t)+'"'+(_filterItemType===t?' selected':'')+'>'+escHtml(t)+' ('+counts[t]+')</option>';
-          }).join('');
-        })()+
-      '</select>'+
+      '<button class="cat-btn'+(_filterItemType?' active':'')+'" onclick="openItemTypeFilterMenu()">'+(_filterItemType?escHtml(_filterItemType):'Item Type')+'</button>'+
       '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
     '</div>'+
     '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
