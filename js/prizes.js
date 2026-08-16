@@ -1053,7 +1053,7 @@ function selectItemType(t, preFill) {
     if (!isEdit && !btypeReady) {
       el.innerHTML =
         '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-          ['Tote','Annotation tabs','Decor','DIY project','Other'].map(function(bt){
+          ['Tote','Annotation tabs','Decor','DIY project','Bin','Other'].map(function(bt){
             return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="pickBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
           }).join('')+
         '</div>'+
@@ -1075,7 +1075,7 @@ function selectItemType(t, preFill) {
     // Stage 3: everything, all editable together
     nameSection =
       '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        ['Tote','Annotation tabs','Decor','DIY project','Other'].map(function(bt){
+        ['Tote','Annotation tabs','Decor','DIY project','Bin','Other'].map(function(bt){
           return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="selectBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
         }).join('')+
       '</div><input type="hidden" id="pm-bookish-type" value="'+escHtml(btype)+'">'+
@@ -1233,7 +1233,7 @@ function selectClothingType(t) {
   var otherField=document.getElementById('clothing-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
 }
 function selectBookishType(t) {
-  ['Tote','Annotation tabs','Decor','DIY project','Other'].forEach(function(x){
+  ['Tote','Annotation tabs','Decor','DIY project','Bin','Other'].forEach(function(x){
     var btn=document.getElementById('btype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
   });
   var inp=document.getElementById('pm-bookish-type'); if(inp)inp.value=t;
