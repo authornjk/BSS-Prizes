@@ -1044,42 +1044,35 @@ function selectItemType(t, preFill) {
 
   } else if (isBookish) {
     var btype=(pf&&pf.bookishType)||'';
-    var btypeCustom=(pf&&pf.bookishTypeCustom)||'';
     var bdescVal = (pf&&pf.bookishDescription) || ((pf&&pf.id&&!pf.bookishType) ? (pf.name||'') : '');
-    var btypeResolved = btype==='Other' ? btypeCustom : btype;
-    var btypeReady = btype && (btype!=='Other' || btypeCustom);
+    var btypeReady = !!btype;
 
     // Stage 1: Type only
     if (!isEdit && !btypeReady) {
       el.innerHTML =
         '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-          ['Tote','Annotation tabs','Decor','DIY project','Bin','Other'].map(function(bt){
+          ['Tote','Annotation tabs','Decor','DIY project','Bin','Misc'].map(function(bt){
             return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="pickBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
           }).join('')+
-        '</div>'+
-        (btype==='Other'?'<div style="margin-top:6px"><input type="text" id="pm-bookish-type-custom" placeholder="Describe the type" onblur="advanceBookishTypeCustom()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>':'')+
-        '</div>';
-      if (btype==='Other') document.getElementById('pm-bookish-type-custom')?.focus();
+        '</div></div>';
       return;
     }
     // Stage 2: Description only
     if (!isEdit && !bdescVal) {
       el.innerHTML =
-        '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type: <b>'+escHtml(btypeResolved)+'</b></div>'+
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type: <b>'+escHtml(btype)+'</b></div>'+
         '<div class="field"><label>Description</label><input type="text" id="pm-bookish-desc" placeholder="e.g. teal canvas with gold logo" onblur="advanceBookishDesc()" onkeydown="if(event.key===\'Enter\')this.blur()"></div>'+
-        '<input type="hidden" id="pm-bookish-type-hidden" value="'+escHtml(btype)+'">'+
-        '<input type="hidden" id="pm-bookish-type-custom-hidden" value="'+escHtml(btypeCustom)+'">';
+        '<input type="hidden" id="pm-bookish-type-hidden" value="'+escHtml(btype)+'">';
       document.getElementById('pm-bookish-desc')?.focus();
       return;
     }
     // Stage 3: everything, all editable together
     nameSection =
       '<div class="field"><label>Type</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        ['Tote','Annotation tabs','Decor','DIY project','Bin','Other'].map(function(bt){
+        ['Tote','Annotation tabs','Decor','DIY project','Bin','Misc'].map(function(bt){
           return '<button type="button" class="cat-btn'+(btype===bt?' active':'')+'" onclick="selectBookishType(\''+bt+'\')" id="btype-'+bt.replace(/[^a-zA-Z]/g,'')+'">'+bt+'</button>';
         }).join('')+
       '</div><input type="hidden" id="pm-bookish-type" value="'+escHtml(btype)+'">'+
-      '<div id="bookish-type-other-field" style="display:'+(btype==='Other'?'block':'none')+';margin-top:6px"><input type="text" id="pm-bookish-type-custom" value="'+escHtml(btypeCustom)+'" placeholder="Describe the type"></div>'+
       '</div>'+
       '<div class="field"><label>Description</label><input type="text" id="pm-bookish-desc" value="'+escHtml(bdescVal)+'" placeholder="e.g. teal canvas with gold logo"></div>';
 
@@ -1198,23 +1191,16 @@ function advanceClothingDesc(){
   selectItemType('Clothing', {clothingType:ctype, clothingTypeCustom:ctypeCustom, clothingSize:csize, clothingSizeCustom:csizeCustom, clothingDescription:v});
 }
 
-// Bookish item staging: same pattern — Type pill advances immediately
-// (or reveals custom text for "Other"), then Description advances on blur/Enter.
+// Bookish item staging: tapping any type pill (including "Misc") advances
+// immediately straight to Description — no custom-text sub-step.
 function pickBookishType(t){
-  if (t==='Other') { selectItemType('Bookish item', {bookishType:'Other'}); return; }
   selectItemType('Bookish item', {bookishType:t});
-}
-function advanceBookishTypeCustom(){
-  var v = document.getElementById('pm-bookish-type-custom')?.value?.trim()||'';
-  if (!v) return;
-  selectItemType('Bookish item', {bookishType:'Other', bookishTypeCustom:v});
 }
 function advanceBookishDesc(){
   var btype = document.getElementById('pm-bookish-type-hidden')?.value||'';
-  var btypeCustom = document.getElementById('pm-bookish-type-custom-hidden')?.value||'';
   var v = document.getElementById('pm-bookish-desc')?.value?.trim()||'';
   if (!v) return;
-  selectItemType('Bookish item', {bookishType:btype, bookishTypeCustom:btypeCustom, bookishDescription:v});
+  selectItemType('Bookish item', {bookishType:btype, bookishDescription:v});
 }
 
 // Jewelry / Misc / any custom item type: single description field, then rest.
@@ -1233,11 +1219,10 @@ function selectClothingType(t) {
   var otherField=document.getElementById('clothing-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
 }
 function selectBookishType(t) {
-  ['Tote','Annotation tabs','Decor','DIY project','Bin','Other'].forEach(function(x){
+  ['Tote','Annotation tabs','Decor','DIY project','Bin','Misc'].forEach(function(x){
     var btn=document.getElementById('btype-'+x.replace(/[^a-zA-Z]/g,'')); if(btn)btn.classList.toggle('active',x===t);
   });
   var inp=document.getElementById('pm-bookish-type'); if(inp)inp.value=t;
-  var otherField=document.getElementById('bookish-type-other-field'); if(otherField)otherField.style.display=t==='Other'?'block':'none';
 }
 function selectClothingSize(v) {
   ['XS','S','M','L','XL','XXL','XXXL','One size','Custom'].forEach(function(x){
@@ -1383,12 +1368,10 @@ function computePrizeNameAndTypeFields(){
   }
   if (itemType==='Bookish item') {
     var btypeRaw=document.getElementById('pm-bookish-type')?.value||'';
-    var btypeCustom=document.getElementById('pm-bookish-type-custom')?.value?.trim()||'';
-    var btypeResolved = btypeRaw==='Other' ? (btypeCustom||'Other') : btypeRaw;
     var bdesc=document.getElementById('pm-bookish-desc')?.value?.trim()||'';
-    var bname = (btypeResolved&&bdesc) ? (btypeResolved+': '+bdesc) : '';
+    var bname = (btypeRaw&&bdesc) ? (btypeRaw+': '+bdesc) : '';
     return {ok:!!(btypeRaw&&bdesc), name:bname, extra:{
-      bookishType:btypeRaw, bookishTypeCustom:btypeCustom,
+      bookishType:btypeRaw,
       bookishDescription:bdesc
     }, donationTagType:'other'};
   }
