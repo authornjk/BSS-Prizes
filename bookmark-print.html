@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <title>Donation Tags — Print</title>
 <link href="https://fonts.cdnfonts.com/css/brittany-signature" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&family=EB+Garamond:wght@400;600&display=swap" rel="stylesheet">
 <style>
 @page { size: letter portrait; margin: 0.5in 0.25in; }
+/* Clothing tags print landscape (11"×8.5") — overridden dynamically per
+   selected tag type via #page-orientation-style, injected in buildSheets(). */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f0f0}
 .controls{background:#3C3489;color:white;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
@@ -21,6 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    the printer allowance is actually visible on screen, not just baked into
    the invisible @page rule above which only applies once you print/export. */
 .page-frame{width:8.5in;margin:28px auto;background:white;box-shadow:0 2px 14px rgba(0,0,0,.18);position:relative;padding:0.5in 0.25in;box-sizing:border-box}
+.page-frame.landscape{width:11in;padding:0.25in 0.5in}
 .page-frame-label{position:absolute;top:-20px;left:0;font-size:11px;color:#888;font-family:-apple-system,sans-serif}
 .page-frame .sheet{outline:1px dashed #bbb}
 @media print{
@@ -49,21 +52,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bm-qr-line{width:100%;height:.5px;background:#333;margin:2px 0}
 .bm-qr-lbl{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#333;text-align:center;line-height:1.25;padding:1px 0}
 
-/* ── CLOTHING tag: 2.5"×4", 4 cols × 2 rows, landscape orientation ── */
-/* Print in landscape by rotating each tag 90°, laid out as 2 rows of 4 */
+/* ── CLOTHING tag: 2.5"×4", 4 cols × 2 rows, printed landscape ── */
 .page-clothing{display:grid;grid-template-columns:repeat(4,2.5in);grid-template-rows:repeat(2,4in);gap:0.02in;background:white;page-break-after:always}
 .ct{width:2.5in;height:4in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
-.ct-hole{width:.22in;height:.22in;border-radius:50%;border:1.5px solid #888;position:absolute;top:.15in;left:.15in}
+.ct-hole{width:.2in;height:.2in;border-radius:50%;border:1.5px solid #888;position:absolute;top:.15in;left:.15in}
 .ct-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;margin-top:0}
 .ct-logo img{max-width:90%;max-height:90%;object-fit:contain}
 .ct-logo-ph{font-size:6px;color:#aaa;border:1px dashed #ddd;margin:4px;width:calc(100% - 8px);height:calc(100% - 8px);display:flex;align-items:center;justify-content:center;border-radius:3px}
-.ct-size{font-family:Calibri,Carlito,sans-serif;font-size:11px;font-weight:700;text-align:center;padding:0 8px;color:#2C2C2C;flex-shrink:0;width:100%}
-.ct-size span{font-size:13px;color:#3C3489}
+/* "Size:" label sits at the top of the circle; the value fills a flex:1
+   region below it, so it's centered in the space between the bottom of
+   "Size:" and the bottom of the circle — not the circle's dead center. */
+.ct-size-circle{width:.95in;height:.95in;border-radius:50%;border:1.5px solid #B08D57;display:flex;flex-direction:column;align-items:center;padding-top:.09in;flex-shrink:0;box-sizing:border-box}
+.ct-size-label{font-family:Calibri,Carlito,sans-serif;font-size:9px;color:#2C2C2C;flex-shrink:0}
+.ct-size-value-wrap{flex:1;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 4px}
+.ct-size-value{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:20pt;color:#1B2A4A;line-height:1;white-space:nowrap}
 .ct-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.3;font-weight:500;flex-shrink:0}
 .ct-donor{width:calc(100% - 12px);margin:0 6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.4in}
-.ct-donor img{max-width:100%;max-height:.6in;object-fit:contain}
-.ct-donor-name{font-family:'Brittany Signature',cursive;font-size:19px;font-weight:400;color:#1B2A4A;text-align:center;line-height:1.1;width:100%;padding:0 4px}
-.ct-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.3;flex-shrink:0}
+.ct-donor img{max-width:2in;max-height:.75in;object-fit:contain}
+/* Donor name: small caps Adobe Garamond Pro 16pt, navy. line-height:1.75
+   gives 75%-of-height spacing between lines if the name wraps to 2 lines;
+   if it fits on one line the extra line-height is just breathing room. */
+.ct-donor-name{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:16pt;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.75;width:100%;padding:0 4px}
+/* Helvetica 8.5pt, natural wrap (no forced line breaks) so it packs into
+   as few lines as the width allows — stays within 7 lines at this size. */
+.ct-body{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.25;flex-shrink:0}
 .ct-heart{font-size:13px;text-align:center;flex-shrink:0}
 .ct-qr{width:100%;padding:0 6px;display:flex;align-items:center;gap:4px;flex-shrink:0}
 .ct-qr-img{width:.45in;height:.45in;flex-shrink:0}
@@ -176,7 +188,8 @@ function bookTag(p){
 
 function clothingTag(p){
   const pr=p.donorPronoun||'their';
-  const size=p.clothingSize==='Custom'?(p.clothingSizeCustom||'See tag'):p.clothingSize||'';
+  const size=p.clothingSize==='Custom'?(p.clothingSizeCustom||''):p.clothingSize||'';
+  const isOneSize = p.clothingSize==='One size';
   const qrDest=p.donorWebsite||'';
   const logoArea=p.donorLogo
     ?`<div class="ct-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="ct-donor-name" style="display:none">${esc(p.donor)}</div></div>`
@@ -185,13 +198,19 @@ function clothingTag(p){
       <div class="ct-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
       <div class="ct-qr-lbl"><div class="ct-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="ct-qr-line"></div></div>
     </div>`:'';
+  // One-size items skip the circle entirely; justify-content:space-evenly
+  // on .ct then automatically redistributes the remaining sections.
+  const sizeSection = (isOneSize || !size) ? '' : `<div class="ct-size-circle">
+      <div class="ct-size-label">Size:</div>
+      <div class="ct-size-value-wrap"><span class="ct-size-value">${esc(size)}</span></div>
+    </div>`;
   return`<div class="ct">
     <div class="ct-hole"></div>
-    <div class="ct-logo"><img src="" class="tag-logo-img" style="max-width:95%;max-height:95%;object-fit:contain" alt="Soirée 2027"></div>
-    <div class="ct-size">Size: <span>${esc(size)||'___'}</span></div>
+    <div class="ct-logo"><img src="" class="tag-logo-img" style="max-width:90%;max-height:90%;object-fit:contain" alt="Soirée 2027"></div>
+    ${sizeSection}
     <div class="ct-headline">This clothing was<br>donated by</div>
     ${logoArea}
-    <div class="ct-body">${BODY_TEXT}</div>
+    <div class="ct-body">${BODY_TEXT.replace(/<br>/g,' ')}</div>
     <div class="ct-heart">🩷</div>
     ${qrSection}
   </div>`;
@@ -218,9 +237,32 @@ function itemTag(p){
   </div>`;
 }
 
+function setPageOrientation(type){
+  let styleEl = document.getElementById('page-orientation-style');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'page-orientation-style';
+    document.head.appendChild(styleEl);
+  }
+  // Clothing tag table is 10in wide x 8in tall (4×2.5in cols, 2×4in rows) —
+  // fits a landscape 11"×8.5" sheet with 0.5in side / 0.25in top-bottom margin.
+  styleEl.textContent = type==='clothing'
+    ? '@page { size: letter landscape; margin: 0.25in 0.5in; }'
+    : '@page { size: letter portrait; margin: 0.5in 0.25in; }';
+}
+
 function buildSheets(){
   const type=document.getElementById('type-sel').value;
-  const prizes=filterPrizes();
+  setPageOrientation(type);
+  const filtered=filterPrizes();
+  // One donated article can have qty > 1 (e.g. a donor gave 8 of the same
+  // shirt) — expand each prize into `qty` individual tags rather than
+  // printing just one tag per database record.
+  const prizes=[];
+  filtered.forEach(p=>{
+    const n = Math.max(1, +p.qty||1);
+    for(let i=0;i<n;i++) prizes.push(p);
+  });
   const wrap=document.getElementById('sheet-wrap');
   document.getElementById('loading').style.display='none';
   if(!prizes.length){wrap.innerHTML=`<div class="loading">No matching prizes found for this tag type and filter.</div>`;return;}
@@ -235,6 +277,8 @@ function buildSheets(){
     const sheetHtml=`<div class="sheet"><div class="${pageClass}">${batch.map(p=>p?tagFn(p):`<div class="${emptyClass} empty-slot"></div>`).join('')}</div></div>`;
     html+=type==='book'
       ? `<div class="page-frame"><div class="page-frame-label">8.5" × 11" sheet — dashed line shows the 8" × 10" tag table (0.25in side / 0.5in top-bottom margin)</div>${sheetHtml}</div>`
+      : type==='clothing'
+      ? `<div class="page-frame landscape"><div class="page-frame-label">11" × 8.5" landscape sheet — dashed line shows the 10" × 8" tag table (0.5in side / 0.25in top-bottom margin)</div>${sheetHtml}</div>`
       : sheetHtml;
   }
   wrap.innerHTML=html;
