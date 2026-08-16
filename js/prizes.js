@@ -1292,7 +1292,7 @@ function setDonorType(type, preFill) {
   }
   html+=
     '<div class="field"><label>Donor website (for QR code)</label><input type="text" id="pm-website" placeholder="https://\u2026"></div>'+
-    '<div class="field"><label>QR type</label><select id="pm-qrtype"><option value="website">Website</option><option value="instagram">Instagram</option></select></div>'+
+    '<div class="field"><label>QR type</label><select id="pm-qrtype"><option value="website">Website</option><option value="instagram">Instagram profile</option></select></div>'+
     '<div class="field"><label>Pronoun</label><select id="pm-pronoun"><option value="their">their</option><option value="her">her</option><option value="his">his</option></select></div>'+
     '<div class="field"><label>Logo</label>'+
       '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
