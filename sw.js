@@ -1,5 +1,5 @@
-// v20260816v
-const CACHE = 'soiree-prizes-20260816v';
+// v20260816w
+const CACHE = 'soiree-prizes-20260816w';
 const PRECACHE_URLS = [
   'index.html',
   'bookmark-print.html',
