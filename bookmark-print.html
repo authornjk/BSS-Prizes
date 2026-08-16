@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Donation Tags — Print</title>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&family=EB+Garamond:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -69,7 +70,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ct{width:2.5in;height:4in;overflow:hidden;background-color:white;background-image:var(--ct-template-url);background-size:100% 100%;background-repeat:no-repeat;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
 .ct-size-value-wrap{position:absolute;left:0;right:0;top:.96in;height:.571in;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ct-size-value{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:20pt;color:#1B2A4A;line-height:1;white-space:nowrap;display:inline-block}
-.ct-donor{position:absolute;left:6px;right:6px;top:1.84in;height:.5in;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ct-donor{position:absolute;left:6px;right:6px;top:1.75in;height:.59in;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ct-donor img{max-width:2in;max-height:min(.75in,100%);object-fit:contain}
 .ct-donor-name{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:16pt;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.4;width:100%;padding:0 4px}
 .ct-qr-img{width:.45in;height:.45in;position:absolute;left:.39in;top:3.43in}
@@ -131,7 +132,7 @@ document.getElementById('type-sel').value=TYPE;
 const BODY_TEXT='Donations like this make it<br>possible for us to provide<br>everyone a gift. 🎁<br>Please, find a way to show<br>them some gratitude!<br>Send them a message,<br>make a social media post, or<br>next time you are gift<br>shopping for yourself, or a<br>friend, remember them.';
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function qr(url){return`https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(url||'https://example.com')}&choe=UTF-8`;}
+function qr(url){return`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url||'https://example.com')}`;}
 function donorSection(p,nameClass,imgClass){
   if(p.donorLogo) return`<div class="${nameClass.replace('name','')}" style="width:calc(100% - 10px);margin:3px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.5in"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="${nameClass}" style="display:none">${esc(p.donor)}</div></div>`;
   return`<div class="${nameClass}">${esc(p.donor)}</div>`;
@@ -158,6 +159,7 @@ function filterPrizes(){
 
 function bookTag(p){
   const pr=p.donorPronoun||'their';
+  const qrWord=p.donorQRType==='instagram'?'profile':'website';
   const qrDest=p.donorWebsite||p.url||'';
   const logoArea=p.donorLogo
     ?`<div class="bm-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="bm-donor-name" style="display:none">${esc(p.donor)}</div></div>`
@@ -167,7 +169,7 @@ function bookTag(p){
   // .bm then automatically re-spreads the remaining 5 sections evenly.
   const qrSection=qrDest?`<div class="bm-qr">
       <div class="bm-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
-      <div class="bm-qr-right"><div class="bm-qr-line"></div><div class="bm-qr-lbl">Scan the QR<br>code to visit<br>${esc(pr)} website</div><div class="bm-qr-line"></div></div>
+      <div class="bm-qr-right"><div class="bm-qr-line"></div><div class="bm-qr-lbl">Scan the QR<br>code to visit<br>${esc(pr)} ${qrWord}</div><div class="bm-qr-line"></div></div>
     </div>`:'';
   return`<div class="bm">
     <div class="bm-logo">${'<!-- LOGO_PLACEHOLDER -->'?`<img src="" id="bm-logo-img" style="max-width:100%;max-height:100%;object-fit:contain" alt="Bookish Summer Soirée 2027">`:''}</div>
@@ -181,6 +183,7 @@ function bookTag(p){
 
 function clothingTag(p){
   const pr=p.donorPronoun||'their';
+  const qrWord=p.donorQRType==='instagram'?'profile':'website';
   const size=p.clothingSize==='Custom'?(p.clothingSizeCustom||''):p.clothingSize||'';
   const isOneSize = p.clothingSize==='One size';
   const qrDest=p.donorWebsite||'';
@@ -193,7 +196,7 @@ function clothingTag(p){
   // overlays. No website on file → nothing to scan, so it's omitted.
   const qrSection=qrDest?`
     <div class="ct-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
-    <div class="ct-qr-lbl">Scan the QR code to<br>visit ${esc(pr)} website</div>`:'';
+    <div class="ct-qr-lbl">Scan the QR code to<br>visit ${esc(pr)} ${qrWord}</div>`:'';
   const sizeSection = (isOneSize || !size) ? '' : `<div class="ct-size-value-wrap"><span class="ct-size-value">${esc(size)}</span></div>`;
   return`<div class="ct">
     ${sizeSection}
@@ -204,13 +207,14 @@ function clothingTag(p){
 
 function itemTag(p){
   const pr=p.donorPronoun||'their';
+  const qrWord=p.donorQRType==='instagram'?'profile':'website';
   const qrDest=p.donorWebsite||'';
   const logoArea=p.donorLogo
     ?`<div class="it-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="it-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="it-donor"><div class="it-donor-name">${esc(p.donor)}</div></div>`;
   const qrSection=qrDest?`<div class="it-qr">
       <div class="it-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
-      <div class="it-qr-lbl"><div class="it-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="it-qr-line"></div></div>
+      <div class="it-qr-lbl"><div class="it-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} ${qrWord}<div class="it-qr-line"></div></div>
     </div>`:'';
   return`<div class="it">
     <div class="it-hole"></div>
