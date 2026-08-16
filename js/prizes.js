@@ -14,7 +14,8 @@ var _currentPrizeId = 0;
 var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
 var _filterDonations = false; // "Donations" toggle — layers on top of category filter
-var _sortMode = null; // null | 'itemType' | 'az'
+var _filterItemType = ''; // '' = no filter; otherwise an exact itemType string
+var _sortMode = null; // null | 'az'
 
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
 const CAT_LABELS = {'SWAG Bag':'SWAG', 'Uncategorized':'Unassigned'}; // display-only relabeling; underlying cat value is unchanged
@@ -22,6 +23,23 @@ const CAT_LABELS = {'SWAG Bag':'SWAG', 'Uncategorized':'Unassigned'}; // display
 function toggleDonationsFilter(){
   _filterDonations = !_filterDonations;
   renderPrizes();
+}
+function setItemTypeFilter(t){
+  _filterItemType = t;
+  renderPrizes();
+}
+// How many prizes of each item type exist right now (counts by quantity,
+// not just record count) — powers the numbers shown in the Item Type
+// dropdown. Bundle wrapper records aren't a "type" a donor filled in, so
+// they're excluded here.
+function getItemTypeCounts(){
+  var counts = {};
+  getPrizes().forEach(function(p){
+    if (p.isBundle) return;
+    var t = p.itemType || 'Misc';
+    counts[t] = (counts[t]||0) + (+p.qty||1);
+  });
+  return counts;
 }
 function setSortMode(mode){
   _sortMode = (_sortMode === mode) ? null : mode; // tap again to turn back off
@@ -31,11 +49,6 @@ function setSortMode(mode){
 // search-relevance tiers). With no sort mode active, this is a no-op and
 // the list keeps its natural order.
 function sortComparator(a, b){
-  if (_sortMode === 'itemType') {
-    var at = a.itemType||'', bt = b.itemType||'';
-    if (at !== bt) return at.localeCompare(bt);
-    return (a.name||'').localeCompare(b.name||'');
-  }
   if (_sortMode === 'az') {
     return (a.name||'').localeCompare(b.name||'');
   }
@@ -65,11 +78,19 @@ function renderPrizes() {
       '<button class="btn primary" onclick="openAddPrize()"><i class="ti ti-plus"></i> Add prize</button>'+
     '</div>'+
     '<div style="margin-bottom:8px">'+
-      '<input type="text" id="prize-search" value="'+escHtml(_searchQ)+'" placeholder="Search prizes, donors, notes\u2026" style="width:100%;font-size:13px;padding:8px 12px" oninput="debouncePrizeSearch(this.value)">'+
+      '<input type="text" id="prize-search" value="'+escHtml(_searchQ)+'" placeholder="Search prizes, donors, notes\u2026" style="width:100%;font-size:16px;padding:8px 12px" oninput="debouncePrizeSearch(this.value)">'+
     '</div>'+
     '<div style="display:flex;gap:5px;align-items:center;margin-bottom:6px">'+
       '<span style="font-size:11px;color:var(--text3)">Sort:</span>'+
-      '<button class="cat-btn'+(_sortMode==='itemType'?' active':'')+'" onclick="setSortMode(\'itemType\')">Item Type</button>'+
+      '<select onchange="setItemTypeFilter(this.value)" style="font-size:16px;padding:3px 6px;border-radius:14px;border:.5px solid var(--border2);background:var(--bg);color:var(--text)">'+
+        '<option value=""'+(!_filterItemType?' selected':'')+'>Item Type</option>'+
+        (function(){
+          var counts = getItemTypeCounts();
+          return Object.keys(counts).sort().map(function(t){
+            return '<option value="'+escHtml(t)+'"'+(_filterItemType===t?' selected':'')+'>'+escHtml(t)+' ('+counts[t]+')</option>';
+          }).join('');
+        })()+
+      '</select>'+
       '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
     '</div>'+
     '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
@@ -108,6 +129,7 @@ function updatePrizeListAndCounts() {
   }
   var catFilter = function(p){
     if (_filterDonations && !p.donor) return false;
+    if (_filterItemType && p.itemType !== _filterItemType) return false;
     return !_filterCat || p.cat === _filterCat;
   };
 
