@@ -13,26 +13,38 @@ var _goalsCache = { targets:{}, notes:{}, lists:{} };
 async function loadGoalsFromFirebase() {
   try {
     var remote = await dbGet('hq/prizeGoals');
-    if (remote && (remote.targets || remote.notes || remote.lists)) {
-      _goalsCache = {
-        targets: remote.targets || {},
-        notes:   remote.notes   || {},
-        lists:   remote.lists   || {}
-      };
-      return;
-    }
-    // Nothing in Firebase yet — check this device's localStorage for
-    // anything left over from before, and migrate it up so it isn't lost.
+    var cache = {
+      targets: (remote && remote.targets) || {},
+      notes:   (remote && remote.notes)   || {},
+      lists:   (remote && remote.lists)   || {}
+    };
+
+    // Per-field rescue: even if Firebase already has *some* data (e.g. just
+    // the auto-computed BINGO target from a different device), still pull
+    // in anything this specific device still has locally that Firebase's
+    // copy is missing — rather than skipping the whole check just because
+    // Firebase wasn't completely empty.
     var localTargets = JSON.parse(localStorage.getItem(CAT_GOALS_KEY)||'{}');
-    var localNotes = {}, localLists = {};
+    var changed = false;
+    Object.keys(localTargets).forEach(function(cat){
+      if (cache.targets[cat] === undefined) { cache.targets[cat] = localTargets[cat]; changed = true; }
+    });
     ['BINGO','Raffle','Medium','Small'].forEach(function(cat){
       var n = localStorage.getItem('goal_notes_'+cat);
-      if (n) localNotes[cat] = n;
+      if (n && !cache.notes[cat]) { cache.notes[cat] = n; changed = true; }
       var l = localStorage.getItem('goal_prize_list_'+cat);
-      if (l) { try { localLists[cat] = JSON.parse(l); } catch(e){} }
+      if (l) {
+        try {
+          var parsed = JSON.parse(l);
+          if (parsed.length && (!cache.lists[cat] || !cache.lists[cat].length)) {
+            cache.lists[cat] = parsed; changed = true;
+          }
+        } catch(e){}
+      }
     });
-    _goalsCache = { targets: localTargets, notes: localNotes, lists: localLists };
-    if (Object.keys(localTargets).length || Object.keys(localNotes).length || Object.keys(localLists).length) {
+
+    _goalsCache = cache;
+    if (changed) {
       await dbSet('hq/prizeGoals', _goalsCache);
       showToast('Recovered goal lists from this device \u2014 now synced');
     }
@@ -59,6 +71,12 @@ function getGoals() {
 function saveGoal(cat, val) {
   _goalsCache.targets[cat] = +val;
   persistGoalsCache();
+}
+function stepGoal(cat, delta) {
+  var cur = +getGoals()[cat] || 0;
+  var next = Math.max(0, cur + delta);
+  saveGoal(cat, next);
+  renderGoals();
 }
 async function loadBINGOGoal() {
   try {
@@ -188,11 +206,11 @@ function renderGoals() {
   if (budgetEl) renderBudgetBar(prizes, budgetEl);
 
   // Simple count-only card (no goal/needed comparison) — used for
-  // Uncategorized and SWAG, which don't have a target to hit.
-  function simpleCountCard(label, count, caption) {
+  // Unassigned and SWAG, which don't have a target to hit. Just the label
+  // and a bare number, nothing else.
+  function simpleCountCard(label, count) {
     return '<div class="goal-card"><div style="font-size:10px;font-weight:600;color:var(--text2)">'+label+'</div>'+
-      '<div style="font-size:14px;font-weight:600;margin:2px 0">'+count+'</div>'+
-      '<div style="font-size:9px;color:var(--text3)">'+caption+'</div></div>';
+      '<div style="font-size:16px;font-weight:600;margin-top:3px">'+count+'</div></div>';
   }
 
   function goalCardHtml(cat) {
@@ -205,9 +223,18 @@ function renderGoals() {
     var need = Math.max(0, goal-have);
     var cls  = have>=goal ? 'green' : need<=5 ? 'amber' : 'red';
     var notes = getGoalNotes(cat);
+    // Real visible up/down stepper instead of a native number input — native
+    // spinner arrows don't render on mobile Safari, so this stays visible
+    // and tappable everywhere.
     var goalDisplay = isAuto
       ? String(goal)
-      : '<input type="number" value="'+goal+'" min="0" style="width:32px;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border2);background:transparent;color:var(--text);text-align:center;padding:0" onblur="saveGoal(\''+cat+'\',this.value);renderGoals()" onkeydown="if(event.key===\'Enter\')this.blur()" onclick="event.stopPropagation()">';
+      : '<span style="display:inline-flex;align-items:center;gap:3px;border:1px solid var(--border2);border-radius:10px;padding:1px 5px 1px 6px">'+
+          '<span style="font-size:14px;font-weight:600;min-width:14px;text-align:center">'+goal+'</span>'+
+          '<span style="display:flex;flex-direction:column">'+
+            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:7px"><i class="ti ti-chevron-up" style="font-size:9px;color:var(--text3)"></i></button>'+
+            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',-1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:7px"><i class="ti ti-chevron-down" style="font-size:9px;color:var(--text3)"></i></button>'+
+          '</span>'+
+        '</span>';
     var footer = '';
     if (isAuto) {
       footer = '<div style="font-size:8px;color:var(--text3)">attendees+10</div>';
@@ -221,7 +248,8 @@ function renderGoals() {
       '<div style="font-size:10px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
       '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;margin:2px 0">'+
         '<span style="font-size:14px;font-weight:600;color:var(--text)">'+have+'</span>'+
-        '<span style="font-size:14px;font-weight:600;color:var(--text)">/ '+goalDisplay+'</span>'+
+        '<span style="font-size:14px;font-weight:600;color:var(--text)">/</span>'+
+        goalDisplay+
       '</div>'+
       '<div style="font-size:12px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
       footer+
@@ -231,14 +259,14 @@ function renderGoals() {
   var uncatCount = prizes.filter(function(p){ return p.cat==='Uncategorized'; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
   var swagCount  = prizes.filter(function(p){ return p.cat==='SWAG Bag'; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
 
-  // Row 1: Prizes, Raffle, Uncategorized · Row 2: Medium, Small, SWAG
+  // Row 1: Prizes, Raffle, Unassigned · Row 2: Medium, Small, SWAG
   var html =
     goalCardHtml('BINGO') +
     goalCardHtml('Raffle') +
-    simpleCountCard('Uncategorized', uncatCount, 'count only') +
+    simpleCountCard('Unassigned', uncatCount) +
     goalCardHtml('Medium') +
     goalCardHtml('Small') +
-    simpleCountCard('SWAG', swagCount, 'no limit');
+    simpleCountCard('SWAG', swagCount);
 
   el.innerHTML = html;
 }
