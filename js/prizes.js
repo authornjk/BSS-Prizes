@@ -14,13 +14,32 @@ var _currentPrizeId = 0;
 var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
 var _filterDonations = false; // "Donations" toggle — layers on top of category filter
+var _sortMode = null; // null | 'category' | 'az'
 
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
-const CAT_LABELS = {'SWAG Bag':'SWAG'}; // display-only relabeling; underlying cat value is unchanged
+const CAT_LABELS = {'SWAG Bag':'SWAG', 'Uncategorized':'Unassigned'}; // display-only relabeling; underlying cat value is unchanged
 
 function toggleDonationsFilter(){
   _filterDonations = !_filterDonations;
   renderPrizes();
+}
+function setSortMode(mode){
+  _sortMode = (_sortMode === mode) ? null : mode; // tap again to turn back off
+  renderPrizes();
+}
+// Secondary sort applied within whatever grouping already exists (e.g.
+// search-relevance tiers). With no sort mode active, this is a no-op and
+// the list keeps its natural order.
+function sortComparator(a, b){
+  if (_sortMode === 'category') {
+    var ai = CATEGORIES.indexOf(a.cat), bi = CATEGORIES.indexOf(b.cat);
+    if (ai !== bi) return ai - bi;
+    return (a.name||'').localeCompare(b.name||'');
+  }
+  if (_sortMode === 'az') {
+    return (a.name||'').localeCompare(b.name||'');
+  }
+  return 0;
 }
 
 // ── Render prizes list ────────────────────────────────────────────────────────
@@ -47,6 +66,11 @@ function renderPrizes() {
     '</div>'+
     '<div style="margin-bottom:8px">'+
       '<input type="text" id="prize-search" value="'+escHtml(_searchQ)+'" placeholder="Search prizes, donors, notes\u2026" style="width:100%;font-size:13px;padding:8px 12px" oninput="debouncePrizeSearch(this.value)">'+
+    '</div>'+
+    '<div style="display:flex;gap:5px;align-items:center;margin-bottom:6px">'+
+      '<span style="font-size:11px;color:var(--text3)">Sort:</span>'+
+      '<button class="cat-btn'+(_sortMode==='category'?' active':'')+'" onclick="setSortMode(\'category\')">Category</button>'+
+      '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
     '</div>'+
     '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
       '<button class="cat-btn'+ (!_filterCat?' active':'')+'" onclick="_filterCat=\'\';renderPrizes()">All</button>'+
@@ -211,9 +235,9 @@ function buildPrizeList(allPrizes, bundles, individual, bundled, searchFilter, c
   var el = document.getElementById('prize-list-inner');
   if (!el) return;
   searchTier = searchTier || function(){ return 0; };
-  var bFiltered  = bundles.filter(catFilter);
-  var iFiltered  = individual.filter(catFilter).filter(searchFilter).sort(function(a,b){ return searchTier(a)-searchTier(b); });
-  var bndFiltered = bundled.filter(catFilter).filter(searchFilter).sort(function(a,b){ return searchTier(a)-searchTier(b); });
+  var bFiltered  = bundles.filter(catFilter).sort(sortComparator);
+  var iFiltered  = individual.filter(catFilter).filter(searchFilter).sort(function(a,b){ var t=searchTier(a)-searchTier(b); return t!==0?t:sortComparator(a,b); });
+  var bndFiltered = bundled.filter(catFilter).filter(searchFilter).sort(function(a,b){ var t=searchTier(a)-searchTier(b); return t!==0?t:sortComparator(a,b); });
 
   // Group individual (non-bundled) prizes that share the exact same name into
   // stacks. This naturally re-forms on its own whenever a split-off piece
@@ -525,7 +549,7 @@ function finishBundle() {
   nf.innerHTML='<label>Bundle name</label><input type="text" id="bundle-name" placeholder="e.g. Dream book set" style="width:100%">';
   var cf = document.createElement('div'); cf.className='field';
   cf.innerHTML='<label>Category</label><select id="bundle-cat" style="width:100%">'+
-    CATEGORIES.map(function(c){return '<option'+(c===sharedCat?' selected':'')+'>'+c+'</option>';}).join('')+'</select>';
+    CATEGORIES.map(function(c){return '<option value="'+c+'"'+(c===sharedCat?' selected':'')+'>'+(CAT_LABELS[c]||c)+'</option>';}).join('')+'</select>';
   var ac = document.createElement('div'); ac.className='m-actions';
   var cb = document.createElement('button'); cb.className='btn'; cb.textContent='Cancel';
   cb.onclick=function(){overlay.remove();cancelBundle();};
@@ -735,7 +759,7 @@ function openEditBundle(id, overrides) {
     '<h3>Edit bundle</h3>'+
     '<div class="field"><label>Bundle name</label><input type="text" id="eb-name" value="'+escHtml(nameVal)+'" style="width:100%"></div>'+
     '<div class="field"><label>Category</label><select id="eb-cat" style="width:100%">'+
-      CATEGORIES.map(function(c){return '<option'+(catVal===c?' selected':'')+'>'+c+'</option>';}).join('')+
+      CATEGORIES.map(function(c){return '<option value="'+c+'"'+(catVal===c?' selected':'')+'>'+(CAT_LABELS[c]||c)+'</option>';}).join('')+
     '</select></div>'+
     '<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">In bundle ('+items.length+')</div>'+
     '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">'+
@@ -1072,7 +1096,7 @@ function selectItemType(t, preFill) {
   }
 
   var catOptions = '<option value="">— Select category —</option>'+
-    CATEGORIES.map(function(c){return '<option'+(pf&&pf.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
+    CATEGORIES.map(function(c){return '<option value="'+c+'"'+(pf&&pf.cat===c?' selected':'')+'>'+(CAT_LABELS[c]||c)+'</option>';}).join('');
 
   var tagHtml = isEdit ? getTagStatusHtml(pf) : '';
 
