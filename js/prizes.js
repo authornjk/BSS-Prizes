@@ -14,7 +14,7 @@ var _currentPrizeId = 0;
 var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
 var _filterDonations = false; // "Donations" toggle — layers on top of category filter
-var _sortMode = null; // null | 'category' | 'az'
+var _sortMode = null; // null | 'itemType' | 'az'
 
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
 const CAT_LABELS = {'SWAG Bag':'SWAG', 'Uncategorized':'Unassigned'}; // display-only relabeling; underlying cat value is unchanged
@@ -31,9 +31,9 @@ function setSortMode(mode){
 // search-relevance tiers). With no sort mode active, this is a no-op and
 // the list keeps its natural order.
 function sortComparator(a, b){
-  if (_sortMode === 'category') {
-    var ai = CATEGORIES.indexOf(a.cat), bi = CATEGORIES.indexOf(b.cat);
-    if (ai !== bi) return ai - bi;
+  if (_sortMode === 'itemType') {
+    var at = a.itemType||'', bt = b.itemType||'';
+    if (at !== bt) return at.localeCompare(bt);
     return (a.name||'').localeCompare(b.name||'');
   }
   if (_sortMode === 'az') {
@@ -69,7 +69,7 @@ function renderPrizes() {
     '</div>'+
     '<div style="display:flex;gap:5px;align-items:center;margin-bottom:6px">'+
       '<span style="font-size:11px;color:var(--text3)">Sort:</span>'+
-      '<button class="cat-btn'+(_sortMode==='category'?' active':'')+'" onclick="setSortMode(\'category\')">Category</button>'+
+      '<button class="cat-btn'+(_sortMode==='itemType'?' active':'')+'" onclick="setSortMode(\'itemType\')">Item Type</button>'+
       '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
     '</div>'+
     '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
