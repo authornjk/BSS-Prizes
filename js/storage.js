@@ -101,6 +101,18 @@ function closeModal() {
   // Always reset prize edit state when modal closes
   if (typeof _editMode !== 'undefined')       _editMode = false;
   if (typeof _currentPrizeId !== 'undefined') _currentPrizeId = 0;
+  resetZoom();
+}
+// Safety net alongside the 16px input font-size fix (which stops iOS from
+// auto-zooming in the first place): if someone manually pinch-zoomed while
+// filling out a form, snap back to normal zoom once that form closes.
+// Briefly toggling maximum-scale forces Safari to reset the current scale.
+function resetZoom() {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  const original = meta.getAttribute('content');
+  meta.setAttribute('content', original + ', maximum-scale=1.0');
+  setTimeout(() => meta.setAttribute('content', original), 50);
 }
 function closeModalOutside(e) { /* no-op: clicking outside a modal no longer closes it — use the X or Cancel/Save buttons */ }
 
