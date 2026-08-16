@@ -209,8 +209,8 @@ function renderGoals() {
   // Unassigned and SWAG, which don't have a target to hit. Just the label
   // and a bare number, nothing else.
   function simpleCountCard(label, count) {
-    return '<div class="goal-card"><div style="font-size:10px;font-weight:600;color:var(--text2)">'+label+'</div>'+
-      '<div style="font-size:16px;font-weight:600;margin-top:3px">'+count+'</div></div>';
+    return '<div class="goal-card"><div style="font-size:9px;font-weight:600;color:var(--text2)">'+label+'</div>'+
+      '<div style="font-size:14px;font-weight:600;margin-top:1px">'+count+'</div></div>';
   }
 
   function goalCardHtml(cat) {
@@ -228,30 +228,30 @@ function renderGoals() {
     // and tappable everywhere.
     var goalDisplay = isAuto
       ? String(goal)
-      : '<span style="display:inline-flex;align-items:center;gap:3px;border:1px solid var(--border2);border-radius:10px;padding:1px 5px 1px 6px">'+
-          '<span style="font-size:14px;font-weight:600;min-width:14px;text-align:center">'+goal+'</span>'+
+      : '<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border2);border-radius:8px;padding:0 3px 0 4px">'+
+          '<span style="font-size:13px;font-weight:600;min-width:12px;text-align:center">'+goal+'</span>'+
           '<span style="display:flex;flex-direction:column">'+
-            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:7px"><i class="ti ti-chevron-up" style="font-size:9px;color:var(--text3)"></i></button>'+
-            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',-1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:7px"><i class="ti ti-chevron-down" style="font-size:9px;color:var(--text3)"></i></button>'+
+            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:6px"><i class="ti ti-chevron-up" style="font-size:8px;color:var(--text3)"></i></button>'+
+            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',-1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:6px"><i class="ti ti-chevron-down" style="font-size:8px;color:var(--text3)"></i></button>'+
           '</span>'+
         '</span>';
     var footer = '';
     if (isAuto) {
-      footer = '<div style="font-size:8px;color:var(--text3)">attendees+10</div>';
+      footer = '<div style="font-size:7px;color:var(--text3)">attendees+10</div>';
     } else if (isList) {
-      footer = '<button onclick="openGoalPrizeList(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--purple-text);padding:2px;margin-top:1px" title="Edit list"><i class="ti ti-pencil" style="font-size:11px"></i></button>';
+      footer = '<button onclick="openGoalPrizeList(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--purple-text);padding:1px;margin-top:0" title="Edit list"><i class="ti ti-pencil" style="font-size:10px"></i></button>';
     } else {
-      footer = '<button onclick="openGoalNotes(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;margin-top:1px" title="Notes"><i class="ti ti-pencil" style="font-size:11px"></i></button>'+
-        (notes?'<div style="font-size:9px;color:var(--text3);margin-top:2px;text-align:left;word-break:break-word">'+escHtml(notes.substring(0,50))+(notes.length>50?'\u2026':'')+'</div>':'');
+      footer = '<button onclick="openGoalNotes(\''+cat+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:1px;margin-top:0" title="Notes"><i class="ti ti-pencil" style="font-size:10px"></i></button>'+
+        (notes?'<div style="font-size:8px;color:var(--text3);margin-top:1px;text-align:left;word-break:break-word">'+escHtml(notes.substring(0,50))+(notes.length>50?'\u2026':'')+'</div>':'');
     }
     return '<div class="goal-card" style="border-color:var(--'+cls+')">'+
-      '<div style="font-size:10px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
-      '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;margin:2px 0">'+
-        '<span style="font-size:14px;font-weight:600;color:var(--text)">'+have+'</span>'+
-        '<span style="font-size:14px;font-weight:600;color:var(--text)">/</span>'+
+      '<div style="font-size:9px;font-weight:600;color:var(--text2)">'+(cat==='BINGO'?'Prizes':cat)+'</div>'+
+      '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;margin:1px 0">'+
+        '<span style="font-size:13px;font-weight:600;color:var(--text)">'+have+'</span>'+
+        '<span style="font-size:13px;font-weight:600;color:var(--text)">/</span>'+
         goalDisplay+
       '</div>'+
-      '<div style="font-size:12px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
+      '<div style="font-size:11px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</div>'+
       footer+
     '</div>';
   }
