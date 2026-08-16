@@ -72,10 +72,13 @@ function saveGoal(cat, val) {
   _goalsCache.targets[cat] = +val;
   persistGoalsCache();
 }
-function stepGoal(cat, delta) {
+function promptGoal(cat) {
   var cur = +getGoals()[cat] || 0;
-  var next = Math.max(0, cur + delta);
-  saveGoal(cat, next);
+  var input = prompt('Set the '+cat+' goal:', String(cur));
+  if (input === null) return;
+  var n = parseInt(input, 10);
+  if (isNaN(n) || n < 0) { showToast('Please enter a valid number', 'error'); return; }
+  saveGoal(cat, n);
   renderGoals();
 }
 async function loadBINGOGoal() {
@@ -214,7 +217,8 @@ function renderGoals() {
   }
 
   function goalCardHtml(cat) {
-    // For Medium/Small, goal = number of items in prize list
+    // For Medium/Small, goal = number of items in prize list — fully
+    // derived, not something to edit directly on the card at all.
     var isList = (cat==='Medium' || cat==='Small');
     var isAuto = (cat==='BINGO');
     var listItems = isList ? getGoalPrizeList(cat) : null;
@@ -222,18 +226,15 @@ function renderGoals() {
     var have = prizes.filter(function(p){ return p.cat===cat; }).reduce(function(s,p){ return s+(+p.qty||1); }, 0);
     var need = Math.max(0, goal-have);
     var cls  = have>=goal ? 'green' : need<=5 ? 'amber' : 'red';
-    // Real visible up/down stepper instead of a native number input — native
-    // spinner arrows don't render on mobile Safari, so this stays visible
-    // and tappable everywhere.
-    var goalDisplay = isAuto
-      ? String(goal)
-      : '<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border2);border-radius:8px;padding:0 3px 0 4px;vertical-align:middle">'+
-          '<span style="font-size:12px;font-weight:600;min-width:11px;text-align:center">'+goal+'</span>'+
-          '<span style="display:flex;flex-direction:column">'+
-            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:6px"><i class="ti ti-chevron-up" style="font-size:8px;color:var(--text3)"></i></button>'+
-            '<button type="button" onclick="event.stopPropagation();stepGoal(\''+cat+'\',-1)" style="border:none;background:none;padding:0;margin:0;cursor:pointer;line-height:6px"><i class="ti ti-chevron-down" style="font-size:8px;color:var(--text3)"></i></button>'+
-          '</span>'+
-        '</span>';
+    // Plain oval, just the number — no steppers (too small to tap, and the
+    // extra width was forcing "needed" onto two lines). Medium/Small are
+    // purely derived from the Edit list count, so the oval isn't tappable
+    // there. Raffle's isn't list-derived, so tapping it prompts for a new
+    // number directly.
+    var goalDisplay = '<span style="display:inline-block;border:1px solid var(--border2);border-radius:8px;padding:0 6px;font-size:12px;font-weight:600;vertical-align:middle'+
+        (isAuto||isList?'':';cursor:pointer')+'"'+
+        (isAuto||isList?'':' onclick="event.stopPropagation();promptGoal(\''+cat+'\')"')+
+      '>'+goal+'</span>';
     // Only Medium/Small get an inline edit-list pencil, sitting right next
     // to "needed" — matches the reference exactly (Raffle has none).
     var pencil = isList
@@ -244,7 +245,7 @@ function renderGoals() {
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:3px">'+
         '<span style="font-size:12px;color:var(--text2);white-space:nowrap">'+have+'/ '+goalDisplay+'</span>'+
         '<span style="display:flex;align-items:center">'+
-          '<span style="font-size:13px;font-weight:700;color:var(--'+cls+')">'+(need>0?need+' needed':'\u2713 Done')+'</span>'+
+          '<span style="font-size:13px;font-weight:700;color:var(--'+cls+');white-space:nowrap">'+(need>0?need+' needed':'\u2713 Done')+'</span>'+
           pencil+
         '</span>'+
       '</div>'+
