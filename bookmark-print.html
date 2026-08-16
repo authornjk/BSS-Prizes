@@ -53,31 +53,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ── CLOTHING tag: 2.5"×4", 4 cols × 2 rows, printed landscape ── */
 .page-clothing{display:grid;grid-template-columns:repeat(4,2.5in);grid-template-rows:repeat(2,4in);gap:0.02in;background:white;page-break-after:always}
-.ct{width:2.5in;height:4in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
-.ct-hole{width:.2in;height:.2in;border-radius:50%;border:1.5px solid #888;position:absolute;top:.15in;left:.15in}
-.ct-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;margin-top:0}
+/* Tight, deliberate fixed spacing (not elastic) so layout is predictable
+   regardless of name length — matches a fixed mockup, not a stretchy one.
+   One-size cards (no circle) get space-evenly instead, via .ct.one-size,
+   so the freed-up space still fills nicely rather than leaving a gap. */
+.ct{width:2.5in;height:4in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
+.ct.one-size{justify-content:space-evenly}
+/* Hole: centered horizontally, on its own, out of flow so it never
+   competes with or gets crowded by the logo below it. */
+.ct-hole{width:.2in;height:.2in;border-radius:50%;border:1.5px solid #888;position:absolute;top:.13in;left:50%;transform:translateX(-50%)}
+.ct-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;margin-top:.3in}
 .ct-logo img{max-width:90%;max-height:90%;object-fit:contain}
 .ct-logo-ph{font-size:6px;color:#aaa;border:1px dashed #ddd;margin:4px;width:calc(100% - 8px);height:calc(100% - 8px);display:flex;align-items:center;justify-content:center;border-radius:3px}
 /* "Size:" label sits at the top of the circle; the value fills a flex:1
    region below it, so it's centered in the space between the bottom of
    "Size:" and the bottom of the circle — not the circle's dead center. */
-.ct-size-circle{width:.95in;height:.95in;border-radius:50%;border:1.5px solid #B08D57;display:flex;flex-direction:column;align-items:center;padding-top:.09in;flex-shrink:0;box-sizing:border-box}
+.ct-size-circle{width:.85in;height:.85in;border-radius:50%;border:1.5px solid #B08D57;display:flex;flex-direction:column;align-items:center;padding-top:.08in;flex-shrink:0;box-sizing:border-box;margin-top:.08in}
 .ct-size-label{font-family:Calibri,Carlito,sans-serif;font-size:9px;color:#2C2C2C;flex-shrink:0}
 .ct-size-value-wrap{flex:1;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 4px}
 .ct-size-value{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:20pt;color:#1B2A4A;line-height:1;white-space:nowrap}
-.ct-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.3;font-weight:500;flex-shrink:0}
-.ct-donor{width:calc(100% - 12px);margin:0 6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.4in}
+/* "This clothing was donated by" — always exactly one line, never wraps. */
+.ct-headline{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 4px;line-height:1.2;font-weight:500;flex-shrink:0;white-space:nowrap;margin-top:.08in}
+.ct-donor{width:calc(100% - 12px);margin:.04in 6px 0;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.3in}
 .ct-donor img{max-width:2in;max-height:.75in;object-fit:contain}
-/* Donor name: small caps Adobe Garamond Pro 16pt, navy. line-height:1.75
-   gives 75%-of-height spacing between lines if the name wraps to 2 lines;
-   if it fits on one line the extra line-height is just breathing room. */
-.ct-donor-name{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:16pt;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.75;width:100%;padding:0 4px}
+/* Donor name: small caps Adobe Garamond Pro 16pt, navy. Tight line-height
+   (1.15) keeps a 2-line wrapped name compact instead of ballooning —
+   this was the main cause of the QR section getting squeezed off. */
+.ct-donor-name{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:16pt;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.15;width:100%;padding:0 4px}
 /* Helvetica 8.5pt, natural wrap (no forced line breaks) so it packs into
    as few lines as the width allows — stays within 7 lines at this size. */
-.ct-body{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.25;flex-shrink:0}
-.ct-heart{font-size:13px;text-align:center;flex-shrink:0}
-.ct-qr{width:100%;padding:0 6px;display:flex;align-items:center;gap:4px;flex-shrink:0}
-.ct-qr-img{width:.45in;height:.45in;flex-shrink:0}
+.ct-body{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt;color:#1B2A4A;text-align:center;padding:0 8px;line-height:1.2;flex-shrink:0;margin-top:.05in}
+.ct-heart{font-size:12px;text-align:center;flex-shrink:0;margin-top:.03in}
+.ct-qr{width:100%;padding:0 6px;display:flex;align-items:center;gap:4px;flex-shrink:0;margin-top:.03in}
+.ct-qr-img{width:.42in;height:.42in;flex-shrink:0}
 .ct-qr-img img{width:100%;height:100%}
 .ct-qr-ph{width:.45in;height:.45in;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:5px;color:#aaa;flex-shrink:0}
 .ct-qr-lbl{flex:1;font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#333;text-align:center;line-height:1.25}
@@ -197,17 +205,18 @@ function clothingTag(p){
       <div class="ct-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
       <div class="ct-qr-lbl"><div class="ct-qr-line"></div>Scan the QR<br>code to visit<br>${esc(pr)} website<div class="ct-qr-line"></div></div>
     </div>`:'';
-  // One-size items skip the circle entirely; justify-content:space-evenly
-  // on .ct then automatically redistributes the remaining sections.
+  const noCircleCls = (isOneSize || !size) ? ' one-size' : '';
+  // One-size items skip the circle entirely; .ct.one-size switches back
+  // to space-evenly so the freed-up space still fills the card nicely.
   const sizeSection = (isOneSize || !size) ? '' : `<div class="ct-size-circle">
       <div class="ct-size-label">Size:</div>
       <div class="ct-size-value-wrap"><span class="ct-size-value">${esc(size)}</span></div>
     </div>`;
-  return`<div class="ct">
+  return`<div class="ct${noCircleCls}">
     <div class="ct-hole"></div>
     <div class="ct-logo"><img src="" class="tag-logo-img" style="max-width:90%;max-height:90%;object-fit:contain" alt="Soirée 2027"></div>
     ${sizeSection}
-    <div class="ct-headline">This clothing was<br>donated by</div>
+    <div class="ct-headline">This clothing was donated by</div>
     ${logoArea}
     <div class="ct-body">${BODY_TEXT.replace(/<br>/g,' ')}</div>
     <div class="ct-heart">🩷</div>
