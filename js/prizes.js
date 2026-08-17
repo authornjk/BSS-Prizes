@@ -45,17 +45,6 @@ function getItemTypeCounts(){
   });
   return counts;
 }
-function openItemTypeFilterMenu(){
-  var counts = getItemTypeCounts();
-  var types = getItemTypes().slice();
-  // Include any custom types already in use that aren't in the canonical list
-  Object.keys(counts).forEach(function(t){ if (types.indexOf(t)===-1) types.push(t); });
-  var rows = '<button class="cat-btn'+(!_filterItemType?' active':'')+'" style="width:100%;text-align:left;margin-bottom:6px" onclick="setItemTypeFilter(\'\')">All types</button>'+
-    types.map(function(t){
-      return '<button class="cat-btn'+(_filterItemType===t?' active':'')+'" style="width:100%;text-align:left;margin-bottom:6px" onclick="setItemTypeFilter(\''+jsAttrEscape(t)+'\')">'+escHtml(t)+' ('+(counts[t]||0)+')</button>';
-    }).join('');
-  showModal('<h3>Filter by Item Type</h3><div style="display:flex;flex-direction:column">'+rows+'</div><div class="m-actions"><button class="btn" onclick="closeModal()">Cancel</button></div>');
-}
 function setSortMode(mode){
   _sortMode = (_sortMode === mode) ? null : mode; // tap again to turn back off
   renderPrizes();
@@ -95,15 +84,21 @@ function renderPrizes() {
     '<div style="margin-bottom:8px">'+
       '<input type="text" id="prize-search" value="'+escHtml(_searchQ)+'" placeholder="Search prizes, donors, notes\u2026" style="width:100%;font-size:16px;padding:8px 12px" oninput="debouncePrizeSearch(this.value)">'+
     '</div>'+
-    '<div style="display:flex;gap:5px;align-items:center;margin-bottom:6px">'+
-      '<span style="font-size:11px;color:var(--text3)">Sort:</span>'+
-      '<button class="cat-btn'+(_filterItemType?' active':'')+'" onclick="openItemTypeFilterMenu()">'+(_filterItemType?escHtml(_filterItemType):'Item Type')+'</button>'+
+    '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
+      (function(){
+        var counts = getItemTypeCounts();
+        return getItemTypes().map(function(t){
+          return '<button class="cat-btn'+(_filterItemType===t?' active':'')+'" onclick="setItemTypeFilter(_filterItemType===\''+jsAttrEscape(t)+'\'?\'\':\''+jsAttrEscape(t)+'\')">'+escHtml(t)+' ('+(counts[t]||0)+')</button>';
+        }).join('');
+      })()+
+      '<span style="font-size:11px;color:var(--text3);margin-left:auto">Sort:</span>'+
       '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
     '</div>'+
-    '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
-      '<button class="cat-btn'+ (!_filterCat?' active':'')+'" onclick="_filterCat=\'\';renderPrizes()">All</button>'+
-      CATEGORIES.map(function(c){ return '<button class="cat-btn'+(_filterCat===c?' active':'')+'" onclick="_filterCat=\''+c+'\';renderPrizes()">'+(CAT_LABELS[c]||c)+'</button>'; }).join('')+
-      '<button class="cat-btn'+(_filterDonations?' active':'')+'" onclick="toggleDonationsFilter()" style="margin-left:auto;border-color:var(--purple)'+(_filterDonations?';background:var(--purple);color:white':'')+'"><i class="ti ti-gift"></i> Donations</button>'+
+    '<div style="border-top:.5px solid var(--border);margin-bottom:8px"></div>'+
+    '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">'+
+      '<button class="cat-btn cat-btn-sm'+ (!_filterCat?' active':'')+'" onclick="_filterCat=\'\';renderPrizes()">All</button>'+
+      CATEGORIES.map(function(c){ return '<button class="cat-btn cat-btn-sm'+(_filterCat===c?' active':'')+'" onclick="_filterCat=\''+c+'\';renderPrizes()">'+(CAT_LABELS[c]||c)+'</button>'; }).join('')+
+      '<button class="cat-btn cat-btn-sm'+(_filterDonations?' active':'')+'" onclick="toggleDonationsFilter()" style="margin-left:auto;border-color:var(--purple)'+(_filterDonations?';background:var(--purple);color:white':'')+'"><i class="ti ti-gift"></i> Donations</button>'+
     '</div>'+
     '<div id="prize-list-inner" style="display:flex;flex-direction:column;gap:8px"></div>'+
     '<div style="height:300px"></div>';
