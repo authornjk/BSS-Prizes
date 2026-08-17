@@ -15,7 +15,7 @@ var _editMode       = false;
 var _removeFlow      = null; // in-progress "remove from bundle" flow state
 var _filterDonations = false; // "Donations" toggle — layers on top of category filter
 var _filterItemType = ''; // '' = no filter; otherwise an exact itemType string
-var _sortMode = null; // null | 'az'
+var _sortMode = null; // null | 'az' | 'category'
 
 const CATEGORIES = ['BINGO','Raffle','Medium','Small','SWAG Bag','Uncategorized'];
 const CAT_LABELS = {'SWAG Bag':'SWAG', 'Uncategorized':'Unassigned'}; // display-only relabeling; underlying cat value is unchanged
@@ -56,6 +56,11 @@ function sortComparator(a, b){
   if (_sortMode === 'az') {
     return (a.name||'').localeCompare(b.name||'');
   }
+  if (_sortMode === 'category') {
+    var ai = CATEGORIES.indexOf(a.cat), bi = CATEGORIES.indexOf(b.cat);
+    if (ai !== bi) return ai - bi;
+    return (a.name||'').localeCompare(b.name||'');
+  }
   return 0;
 }
 
@@ -84,17 +89,21 @@ function renderPrizes() {
     '<div style="margin-bottom:8px">'+
       '<input type="text" id="prize-search" value="'+escHtml(_searchQ)+'" placeholder="Search prizes, donors, notes\u2026" style="width:100%;font-size:16px;padding:8px 12px" oninput="debouncePrizeSearch(this.value)">'+
     '</div>'+
-    '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
+    '<div style="display:flex;gap:5px;align-items:center;margin-bottom:8px">'+
+      '<span style="font-size:11px;color:var(--text3)">Sort by:</span>'+
+      '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
+      '<button class="cat-btn'+(_sortMode==='category'?' active':'')+'" onclick="setSortMode(\'category\')">Category</button>'+
+    '</div>'+
+    '<div style="border-top:1px solid var(--border2);margin-bottom:8px"></div>'+
+    '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+
       (function(){
         var counts = getItemTypeCounts();
         return getItemTypes().map(function(t){
-          return '<button class="cat-btn'+(_filterItemType===t?' active':'')+'" onclick="setItemTypeFilter(_filterItemType===\''+jsAttrEscape(t)+'\'?\'\':\''+jsAttrEscape(t)+'\')">'+escHtml(t)+' ('+(counts[t]||0)+')</button>';
+          return '<button class="cat-btn cat-btn-sm'+(_filterItemType===t?' active':'')+'" onclick="setItemTypeFilter(_filterItemType===\''+jsAttrEscape(t)+'\'?\'\':\''+jsAttrEscape(t)+'\')">'+escHtml(t)+' ('+(counts[t]||0)+')</button>';
         }).join('');
       })()+
-      '<span style="font-size:11px;color:var(--text3);margin-left:auto">Sort:</span>'+
-      '<button class="cat-btn'+(_sortMode==='az'?' active':'')+'" onclick="setSortMode(\'az\')">A-Z</button>'+
     '</div>'+
-    '<div style="border-top:.5px solid var(--border);margin-bottom:8px"></div>'+
+    '<div style="border-top:1px solid var(--border2);margin-bottom:8px"></div>'+
     '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">'+
       '<button class="cat-btn cat-btn-sm'+ (!_filterCat?' active':'')+'" onclick="_filterCat=\'\';renderPrizes()">All</button>'+
       CATEGORIES.map(function(c){ return '<button class="cat-btn cat-btn-sm'+(_filterCat===c?' active':'')+'" onclick="_filterCat=\''+c+'\';renderPrizes()">'+(CAT_LABELS[c]||c)+'</button>'; }).join('')+
