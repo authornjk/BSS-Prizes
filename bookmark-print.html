@@ -35,7 +35,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ── BOOK tag: 2"×5", 4 cols × 2 rows = 8in × 10in table (printer allowance built into @page margin above) ── */
 .page-book{display:grid;grid-template-columns:repeat(4,2in);grid-template-rows:repeat(2,5in);gap:0;background:white;page-break-after:always}
-.bm{width:2in;height:5in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;font-family:Calibri,Carlito,sans-serif}
+.bm{width:2in;height:5in;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;background:white;border:.5px solid #ddd;position:relative;font-family:Calibri,Carlito,sans-serif}
 .bm-logo{width:1.7in;height:.4in;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
 .bm-logo img{max-width:100%;max-height:100%;object-fit:contain}
 .bm-logo-ph{font-size:6.5px;color:#aaa;text-align:center;border:1px dashed #ddd;margin:4px;width:calc(100% - 8px);height:calc(100% - 8px);display:flex;align-items:center;justify-content:center;border-radius:3px}
@@ -45,13 +45,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bm-donor-name{font-family:'Adobe Garamond Pro','EB Garamond',Garamond,serif;font-variant:small-caps;font-size:16pt;font-weight:600;color:#1B2A4A;text-align:center;line-height:1.75;padding:0 3px;width:100%}
 .bm-body{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#1B2A4A;text-align:center;padding:0 7px;line-height:1.3;flex-shrink:0}
 .bm-heart{font-size:15px;text-align:center;flex-shrink:0}
-.bm-qr{width:100%;padding:0 6px;display:flex;align-items:center;gap:5px;flex-shrink:0}
-.bm-qr-img{width:.5in;height:.5in;flex-shrink:0}
+/* This block still participates in flow (so space-evenly correctly
+   reserves room for it and body text/heart can't drift into it), but
+   everything inside is positioned locally within the block — left:1.42in
+   here is still 1.42in from the card's left edge, since the block spans
+   the card's full width starting at the same left edge. */
+.bm-qr-block{width:100%;min-height:.75in;position:relative;flex-shrink:0}
+.bm-qr-img{width:.5in;height:.5in;position:absolute;left:.073in;top:.125in}
 .bm-qr-img img{width:100%;height:100%}
-.bm-qr-ph{width:.5in;height:.5in;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:6px;color:#aaa;text-align:center;flex-shrink:0}
-.bm-qr-right{flex:1}
-.bm-qr-line{width:100%;height:.5px;background:#333;margin:2px 0}
-.bm-qr-lbl{font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#333;text-align:center;line-height:1.25;padding:1px 0}
+.bm-qr-ph{width:.5in;height:.5in;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:6px;color:#aaa;text-align:center;position:absolute;left:.073in;top:.125in}
+.bm-qr-line-top{width:1.3in;height:.5px;background:#333;position:absolute;left:.625in;top:.05in}
+.bm-qr-line-bottom{width:1.3in;height:.5px;background:#333;position:absolute;left:.625in;top:.67in}
+.bm-qr-lbl{position:absolute;left:1.42in;transform:translateX(-50%);top:.1in;width:max-content;font-family:Calibri,Carlito,sans-serif;font-size:10.6pt;color:#333;text-align:center;line-height:1.25;white-space:nowrap}
 
 /* ── CLOTHING tag: 2.5"×4", printed landscape ──
    Uses your actual template PNG as the background — hole, logo, circle,
@@ -162,13 +167,15 @@ function bookTag(p){
   const logoArea=p.donorLogo
     ?`<div class="bm-donor"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="bm-donor-name" style="display:none">${esc(p.donor)}</div></div>`
     :`<div class="bm-donor"><div class="bm-donor-name">${esc(p.donor)}</div></div>`;
-  // No website on file → no QR to scan, so drop that section entirely and
-  // let the heart become the final item; justify-content:space-evenly on
-  // .bm then automatically re-spreads the remaining 5 sections evenly.
-  const qrSection=qrDest?`<div class="bm-qr">
-      <div class="bm-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
-      <div class="bm-qr-right"><div class="bm-qr-line"></div><div class="bm-qr-lbl">Scan the QR<br>code to visit<br>${esc(pr)} ${qrWord}</div><div class="bm-qr-line"></div></div>
-    </div>`:'';
+  // No website on file → no QR to scan, so drop the whole block entirely;
+  // justify-content:space-evenly on .bm then re-spreads the remaining
+  // sections since this block no longer takes up flow space either.
+  const qrSection=qrDest?`<div class="bm-qr-block">
+    <div class="bm-qr-img"><img src="${qr(qrDest)}" alt="QR"></div>
+    <div class="bm-qr-line-top"></div>
+    <div class="bm-qr-lbl">Scan the QR<br>code to visit<br>${esc(pr)} ${qrWord}</div>
+    <div class="bm-qr-line-bottom"></div>
+  </div>`:'';
   return`<div class="bm">
     <div class="bm-logo">${'<!-- LOGO_PLACEHOLDER -->'?`<img src="" id="bm-logo-img" style="max-width:100%;max-height:100%;object-fit:contain" alt="Bookish Summer Soirée 2027">`:''}</div>
     <div class="bm-headline">This book was<br>donated by</div>
