@@ -17,6 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ctrl-select{font-size:13px;padding:5px 9px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:white}
 .ctrl-select option{color:#2C2C2C;background:white}
 .btn-print{background:white;color:#3C3489;border:none;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-close{background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.6);padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
 .loading{text-align:center;padding:40px;color:#666;font-size:14px}
 .sheet{width:fit-content;margin:0 auto;background:white}
 /* Visual-only representation of the physical 8.5"×11" sheet with the 8"×10"
@@ -107,6 +108,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 <div class="controls">
+  <button class="btn-close" onclick="closeTagPreview()" title="Close and go back">✕ Close</button>
   <h1 id="ctrl-title">🔖 Donation Tags</h1>
   <select class="ctrl-select" id="type-sel" onchange="buildSheets()">
     <option value="book">Book tags (2"×5" bookmark)</option>
@@ -136,6 +138,18 @@ const BODY_TEXT='Donations like this make it<br>possible for us to provide<br>ev
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function qr(url){return`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url||'https://example.com')}`;}
+// Since this page opens in its own new tab, window.close() usually works —
+// but some browsers block closing a tab a script didn't fully control.
+// If that happens, fall back to navigating back to the main app instead of
+// leaving the person stuck with no way out.
+function closeTagPreview(){
+  window.close();
+  setTimeout(function(){
+    if (!window.closed) {
+      window.location.href = 'index.html';
+    }
+  }, 300);
+}
 function donorSection(p,nameClass,imgClass){
   if(p.donorLogo) return`<div class="${nameClass.replace('name','')}" style="width:calc(100% - 10px);margin:3px 5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;min-height:.5in"><img src="${esc(p.donorLogo)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="${nameClass}" style="display:none">${esc(p.donor)}</div></div>`;
   return`<div class="${nameClass}">${esc(p.donor)}</div>`;
